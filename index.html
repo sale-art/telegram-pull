@@ -95,8 +95,8 @@ tr:hover td{background:#fafaf8}
   <div id="pull-status"></div>
   <div class="divider">
     <div class="ctitle" style="margin-bottom:8px"><b>!</b> Paste orders manually</div>
-    <p style="font-size:12px;color:#666;margin-bottom:10px">Copy messages from Telegram and paste below. Separate each order with <strong>---</strong></p>
-    <div class="field"><textarea id="paste" rows="7" placeholder="Name: John Doe&#10;Phone: 08012345678&#10;WhatsApp: +2348012345678&#10;Email: john@gmail.com&#10;---&#10;Name: Jane Smith&#10;Phone: 09087654321&#10;WhatsApp: +2349087654321&#10;Email: jane@gmail.com"></textarea></div>
+    <p style="font-size:12px;color:#666;margin-bottom:10px">Just copy all your order messages from Telegram and paste them here. No separator needed — the tool detects each order automatically!</p>
+    <div class="field"><textarea id="paste" rows="7" placeholder="Just paste all your Telegram order messages here — no separator needed! The tool will automatically detect each order."></textarea></div>
     <button class="btn btg" onclick="parsePaste()">⬇ Parse pasted orders</button>
   </div>
 </div>
@@ -126,7 +126,7 @@ tr:hover td{background:#fafaf8}
     </table>
   </div>
   <div class="divider">
-    <div class="field"><label>WhatsApp message template</label><textarea id="tpl" rows="5">Hello {name}! 👋 This is Smartech. We noticed you showed interest in our {product}. Are you ready to place your order today? We offer FREE delivery nationwide and you pay ONLY on delivery — zero risk! 🔥 Reply YES if you are ready and we will process your order immediately. Stock is very limited!</textarea></div>
+    <div class="field"><label>WhatsApp message template</label><textarea id="tpl" rows="5">Hello {name}! 👋 This is Smartech. We noticed you showed interest in our {product}. Are you ready to place your order today? 🔥 We offer FREE delivery nationwide and you PAY ONLY on delivery — zero risk! Your order will arrive within 3 days. Reply YES if you are ready and we will process your order immediately. Stock is very limited — don't miss out!</textarea></div>
     <div class="bbar">
       <button class="btn bwa blg" onclick="startQueue()">📱 WhatsApp all selected</button>
       <button class="btn bem" onclick="doEmail()">✉ Email all selected</button>
@@ -191,19 +191,51 @@ function parseBlocks(msgs){
     if(keys.length&&!keys.some(function(k){return txt.toLowerCase().includes(k);}))return;
     var ph=Array.from(txt.matchAll(phRe)).map(function(m){return m[0];});
     var em=Array.from(txt.matchAll(emRe)).map(function(m){return m[0];});
+
+    // Extract name — try multiple patterns
     var name='Customer '+(i+1);
-    var nm=txt.match(/(?:^|\n)\s*Name[:\s]+(.+)/im);
-    if(nm&&nm[1])name=nm[1].trim().split('\n')[0].trim();
+    var nm=txt.match(/(?:^|\n)\s*Name[:\s]+([^\n]+)/im)||
+            txt.match(/(?:^|\n)\s*Customer[:\s]+([^\n]+)/im)||
+            txt.match(/(?:^|\n)\s*Full Name[:\s]+([^\n]+)/im);
+    if(nm&&nm[1])name=nm[1].trim();
+
+    // Extract product — try multiple patterns
     var prod='Order item';
-    var pm=txt.match(/NEW ORDER[^\n]*[-—]\s*(.+)/i)||txt.match(/Product[:\s]+(.+)/i)||txt.match(/(iPhone 17[^\n]*|Samsung[^\n]*S26[^\n]*)/i);
-    if(pm)prod=(pm[1]||pm[0]).trim().replace(/[*_]/g,'').slice(0,60);
+    var pm=txt.match(/NEW ORDER[^\n]*[-—]\s*([^\n]+)/i)||
+             txt.match(/\*NEW ORDER[^\n]*[-—]\s*([^\n]+)/i)||
+             txt.match(/Product[:\s]+([^\n]+)/i)||
+             txt.match(/Colour[:\s]+[^\n]*\n?.*?(iPhone 17[^\n]*|Samsung[^\n]*S26[^\n]*)/i)||
+             txt.match(/(iPhone 17[^\n]*|Samsung[^\n]*S26[^\n]*)/i);
+    if(pm)prod=(pm[1]||pm[0]).trim().replace(/[*_🛒]/g,'').trim().slice(0,60);
+
+    // Extract WhatsApp — try WhatsApp field first, then Phone field, then any phone number
     var waNum='';
-    var wm=txt.match(/(?:WhatsApp|WA)[:\s]*\+?(\d{10,13})/i);
-    if(wm){waNum=wm[1].replace(/^0/,'234');}
-    else if(ph[0]){waNum=ph[0].replace(/\s/g,'').replace(/^\+/,'').replace(/^0/,'234');}
+    var wm=txt.match(/(?:WhatsApp|Whatsapp|WA)[:\s]*\+?(\d{10,13})/i)||
+             txt.match(/(?:Phone|Tel|Mobile)[:\s]*\+?(\d{10,13})/i);
+    if(wm){
+      waNum=wm[1].replace(/^0/,'234');
+    } else if(ph[0]){
+      waNum=ph[0].replace(/\s/g,'').replace(/^\+/,'').replace(/^0/,'234');
+    }
     if(waNum&&!waNum.startsWith('234'))waNum='234'+waNum;
     var waFmt=waNum?'+'+waNum:'';
-    out.push({id:'o'+i+'_'+Date.now(),name:name,product:prod,wa:waFmt,email:em[0]||'',via:waFmt&&em[0]?'both':waFmt?'wa':em[0]?'email':'none',sent:false,selected:true});
+
+    // Extract state for delivery note
+    var state='';
+    var sm=txt.match(/State[:\s]+([^\n]+)/i);
+    if(sm)state=sm[1].trim();
+
+    out.push({
+      id:'o'+i+'_'+Date.now(),
+      name:name,
+      product:prod,
+      wa:waFmt,
+      email:em[0]||'',
+      state:state,
+      via:waFmt&&em[0]?'both':waFmt?'wa':em[0]?'email':'none',
+      sent:false,
+      selected:true
+    });
   });
   return out;
 }
@@ -283,11 +315,39 @@ async function pullTelegram(){
 function parsePaste(){
   var txt=g('paste').value.trim();
   if(!txt){alert2('pull-status','warn','Paste your orders first.');return;}
-  var blocks=txt.split('---').filter(function(t){return t.trim();});
+  var blocks=[];
+
+  // Method 1: Split on NEW ORDER pattern
+  if(/NEW ORDER/i.test(txt)){
+    var parts=txt.split(/(?=\*?(?:NEW ORDER|NEW\s+ORDER))/i).filter(function(t){return t.trim();});
+    if(parts.length>1){blocks=parts;}
+  }
+
+  // Method 2: Split when Name: appears after another Name: block
+  if(!blocks.length){
+    var lines=txt.split('\n');
+    var current=[];
+    var allBlocks=[];
+    lines.forEach(function(line){
+      var trimmed=line.trim();
+      if(/^Name[:\s]/i.test(trimmed)&&current.length>0&&current.some(function(l){return /^Name[:\s]/i.test(l.trim());})){
+        allBlocks.push(current.join('\n'));
+        current=[trimmed];
+      } else {
+        current.push(line);
+      }
+    });
+    if(current.length)allBlocks.push(current.join('\n'));
+    blocks=allBlocks.filter(function(b){return b.trim();});
+  }
+
+  // Fallback: treat as one order
+  if(!blocks.length){blocks=[txt];}
+
   var fake=blocks.map(function(t,i){return{text:t.trim(),message_id:i,chat:{id:0}};});
   orders=parseBlocks(fake);
-  if(!orders.length){alert2('pull-status','warn','Could not parse orders. Make sure each order has Name: and Phone: or WhatsApp: fields.');return;}
-  alert2('pull-status','ok','Parsed <strong>'+orders.length+' orders</strong> successfully.');
+  if(!orders.length){alert2('pull-status','warn','Could not parse orders. Make sure messages contain Name: and Phone: or WhatsApp: fields.');return;}
+  alert2('pull-status','ok','Parsed <strong>'+orders.length+' orders</strong> successfully — no separator needed!');
   showOrders();dot(3);
 }
 
@@ -351,7 +411,7 @@ function edit(id){
   renderTable();
 }
 
-function fill(tpl,o){return tpl.replace(/{name}/g,o.name).replace(/{product}/g,o.product);}
+function fill(tpl,o){return tpl.replace(/{name}/g,o.name).replace(/{product}/g,o.product).replace(/{state}/g,o.state||'your state');}
 
 function startQueue(){
   waTpl=g('tpl').value;
@@ -417,3 +477,4 @@ function addLog(name,type,prod){
 </script>
 </body>
 </html>
+
