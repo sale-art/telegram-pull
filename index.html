@@ -182,6 +182,12 @@
     <div class="token-hint">Your token stays in this page only — never sent anywhere except Telegram's own servers.</div>
   </div>
 
+  <div class="field">
+    <label>Your Telegram Chat ID <span style="color:#2563eb;font-size:11px">(required to pull your orders)</span></label>
+    <input type="text" id="chat-id" placeholder="e.g. 5607424830" autocomplete="off">
+    <div class="token-hint">This is the Chat ID where your orders are sent. Find it in your Telegram bot settings.</div>
+  </div>
+
   <div class="row2">
     <div class="field">
       <label>Messages to fetch</label>
@@ -219,6 +225,16 @@
     <button class="btn btn-ghost" onclick="loadDemo()">▷ Load demo data</button>
   </div>
   <div id="fetch-status" style="margin-top:12px"></div>
+
+  <!-- MANUAL PASTE SECTION -->
+  <div id="manual-paste-section" style="display:none;margin-top:16px;border-top:1px solid var(--border);padding-top:16px;">
+    <div class="card-title" style="margin-bottom:8px;"><span>!</span> Paste your Telegram orders manually</div>
+    <p style="font-size:12px;color:var(--text-2);margin-bottom:8px;">Copy your order messages from Telegram and paste them below. Separate each order with <strong>---</strong></p>
+    <div class="field">
+      <textarea id="paste-orders" rows="8" placeholder="Name: John Doe&#10;Phone: 08012345678&#10;Email: john@gmail.com&#10;Product: iPhone 17 Pro Max&#10;---&#10;Name: Jane Smith&#10;Phone: 09087654321&#10;Product: Samsung S26 Ultra"></textarea>
+    </div>
+    <button class="btn btn-tg" onclick="fetchFromPaste()">⬇ Parse pasted orders</button>
+  </div>
 </div>
 
 <!-- STEP 2: ORDERS TABLE -->
@@ -388,38 +404,86 @@ function parseMessages(messages){
 /* ── fetch from Telegram ── */
 async function fetchOrders(){
   const token=$('bot-token').value.trim();
+  const chatId=$('chat-id').value.trim();
   if(!token){alert$('fetch-status','warn','Paste your Bot Token first.');return;}
+  if(!chatId){alert$('fetch-status','warn','Paste your Chat ID too — it is required to pull your orders.');return;}
   $('fetch-icon').textContent='⏳';
   alert$('fetch-status','info','<span class="spinning">⏳</span> Connecting to Telegram...');
   setDot(2);
   const limit=parseInt($('fetch-limit').value);
+
+  // First delete the webhook so getUpdates works
+  try {
+    await fetch(`https://api.telegram.org/bot${token}/deleteWebhook?drop_pending_updates=false`);
+  } catch(e) {}
+
+  // Try getUpdates with offset=-1 to get recent messages
   try{
-    const url=`https://api.telegram.org/bot${token}/getUpdates?limit=${limit}&allowed_updates=["message"]`;
+    // Try multiple offsets to get all messages
+    let allMsgs = [];
+    
+    // Method 1: getUpdates with large negative offset
+    const url=`https://api.telegram.org/bot${token}/getUpdates?offset=-${limit}&limit=${limit}`;
     const res=await fetch(url);
     if(!res.ok)throw new Error('HTTP '+res.status);
     const data=await res.json();
+    
     if(!data.ok){
-      alert$('fetch-status','err','Telegram error: '+(data.description||'Invalid token. Check it and try again.'));
+      // Try without deleting webhook
+      alert$('fetch-status','err','Telegram error: '+(data.description||'Invalid token or webhook conflict. Try again.'));
       setDot(1); $('fetch-icon').textContent='⬇'; return;
     }
-    const msgs=data.result.map(u=>u.message).filter(Boolean);
-    if(!msgs.length){
-      alert$('fetch-status','warn','No messages found. Make sure at least one customer has messaged your bot, then try again.');
+    
+    allMsgs = data.result.map(u=>u.message||u.channel_post).filter(m=>m&&(m.chat.id==chatId||String(m.chat.id)==chatId));
+    
+    // If no messages from getUpdates, try getChatHistory via forwardFrom
+    if(!allMsgs.length) {
+      // Try getting updates without chat filter first
+      const allUpdates = data.result.map(u=>u.message||u.channel_post).filter(Boolean);
+      if(allUpdates.length) {
+        allMsgs = allUpdates;
+      }
+    }
+
+    if(!allMsgs.length){
+      alert$('fetch-status','warn','No messages found in getUpdates. Your bot may be using webhooks which blocks getUpdates. Use the "+ Add" button to manually add your customers, or paste orders below.');
+      // Show manual paste option
+      $('manual-paste-section').style.display='block';
       setDot(1); $('fetch-icon').textContent='⬇'; return;
     }
-    orders=parseMessages(msgs);
+    
+    orders=parseMessages(allMsgs);
     $('fetch-icon').textContent='⬇';
     if(!orders.length){
-      alert$('fetch-status','warn',`Pulled ${msgs.length} messages but none matched your filter. Clear the keyword filter or add matching words.`);
+      alert$('fetch-status','warn',`Pulled ${allMsgs.length} messages but could not parse orders. Try clearing the keyword filter.`);
       setDot(1); return;
     }
-    alert$('fetch-status','ok',`Pulled ${msgs.length} Telegram messages → found <strong>${orders.length} orders</strong>. Review below.`);
+    alert$('fetch-status','ok',`Pulled ${allMsgs.length} Telegram messages → found <strong>${orders.length} orders</strong>. Review below.`);
     renderAll(); setDot(3);
   }catch(e){
     $('fetch-icon').textContent='⬇';
-    alert$('fetch-status','err','Could not reach Telegram. Make sure you are connected to the internet and the token is correct.<br><small style="opacity:.7">Error: '+e.message+'</small>');
+    alert$('fetch-status','err','Could not reach Telegram. Check your internet connection and token.<br><small style="opacity:.7">Error: '+e.message+'</small>');
     setDot(1);
   }
+}
+
+async function fetchFromPaste(){
+  const text = $('paste-orders').value.trim();
+  if(!text){alert$('fetch-status','warn','Paste your Telegram messages first.');return;}
+  const fakeMessages = text.split('---').filter(t=>t.trim()).map((t,i)=>({
+    message_id: i+1,
+    text: t.trim(),
+    from: {first_name:'Customer', last_name: String(i+1)},
+    chat: {id: 0}
+  }));
+  orders = parseMessages(fakeMessages);
+  if(!orders.length){
+    alert$('fetch-status','warn','Could not parse any orders from the pasted text. Make sure each order is separated by ---');
+    return;
+  }
+  alert$('fetch-status','ok',`Parsed <strong>${orders.length} orders</strong> from pasted messages. Review below.`);
+  $('manual-paste-section').style.display='none';
+  renderAll(); setDot(3);
 }
 
 /* ── demo ── */
