@@ -5,634 +5,414 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Order Blast — Smartech</title>
 <style>
-:root {
-  --bg: #f7f7f5;
-  --surface: #ffffff;
-  --border: #e4e4e0;
-  --border-strong: #c8c8c2;
-  --text: #1a1a18;
-  --text-2: #5a5a56;
-  --text-3: #9a9a94;
-  --tg: #2AABEE;
-  --wa: #25D366;
-  --em: #3b6ef6;
-  --ok: #16a34a;
-  --ok-bg: #f0fdf4;
-  --ok-border: #bbf7d0;
-  --err: #dc2626;
-  --err-bg: #fef2f2;
-  --err-border: #fecaca;
-  --warn: #d97706;
-  --warn-bg: #fffbeb;
-  --warn-border: #fde68a;
-  --info: #2563eb;
-  --info-bg: #eff6ff;
-  --info-border: #bfdbfe;
-  --radius: 8px;
-  --radius-lg: 12px;
-}
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; min-height: 100vh; }
-
-header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 20px; display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 10; }
-.logo { width: 32px; height: 32px; background: var(--tg); border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.logo svg { width: 18px; height: 18px; fill: #fff; }
-header h1 { font-size: 15px; font-weight: 600; }
-header p { font-size: 12px; color: var(--text-2); }
-.header-right { margin-left: auto; }
-.step-dots { display: flex; gap: 6px; }
-.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); transition: background .2s; }
-.dot.active { background: var(--tg); }
-.dot.done { background: var(--ok); }
-
-main { max-width: 700px; margin: 0 auto; padding: 20px 16px 60px; }
-
-.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; margin-bottom: 16px; }
-.card-title { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--text-2); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
-.card-title span { background: var(--bg); border: 1px solid var(--border); border-radius: 50%; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; color: var(--text); flex-shrink: 0; }
-
-label { font-size: 12px; font-weight: 500; color: var(--text-2); display: block; margin-bottom: 5px; }
-input, textarea, select { width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 13px; background: var(--bg); color: var(--text); font-family: inherit; outline: none; transition: border-color .15s; }
-input:focus, textarea:focus, select:focus { border-color: var(--tg); background: #fff; }
-textarea { resize: vertical; }
-.field { margin-bottom: 12px; }
-.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-
-.btn { display: inline-flex; align-items: center; gap: 7px; padding: 9px 16px; border-radius: var(--radius); font-size: 13px; font-weight: 500; cursor: pointer; border: 1px solid transparent; transition: all .12s; font-family: inherit; white-space: nowrap; }
-.btn:active { transform: scale(.97); }
-.btn-tg { background: var(--tg); color: #fff; border-color: var(--tg); }
-.btn-wa { background: var(--wa); color: #fff; border-color: var(--wa); }
-.btn-em { background: var(--em); color: #fff; border-color: var(--em); }
-.btn-dark { background: #1a1a18; color: #fff; border-color: #1a1a18; }
-.btn-ghost { background: transparent; color: var(--text); border-color: var(--border-strong); }
-.btn-sm { padding: 5px 10px; font-size: 12px; }
-.btn-lg { padding: 12px 24px; font-size: 14px; font-weight: 600; }
-.btn-bar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-
-.alert { display: flex; align-items: flex-start; gap: 9px; padding: 10px 14px; border-radius: var(--radius); font-size: 13px; line-height: 1.5; margin-bottom: 8px; border: 1px solid; }
-.alert-ok { background: var(--ok-bg); border-color: var(--ok-border); color: var(--ok); }
-.alert-err { background: var(--err-bg); border-color: var(--err-border); color: var(--err); }
-.alert-warn { background: var(--warn-bg); border-color: var(--warn-border); color: var(--warn); }
-.alert-info { background: var(--info-bg); border-color: var(--info-border); color: var(--info); }
-
-.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 14px; }
-.stat { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px; text-align: center; }
-.stat-num { font-size: 22px; font-weight: 700; line-height: 1; }
-.stat-lbl { font-size: 11px; color: var(--text-3); margin-top: 3px; }
-
-.tbl-wrap { overflow-x: auto; }
-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-th { text-align: left; padding: 6px 8px; font-size: 11px; font-weight: 600; color: var(--text-3); text-transform: uppercase; letter-spacing: .04em; border-bottom: 1px solid var(--border); }
-td { padding: 8px 8px; border-bottom: 1px solid var(--border); vertical-align: middle; }
-tr:last-child td { border-bottom: none; }
-tr:hover td { background: var(--bg); }
-
-.badge { display: inline-flex; align-items: center; font-size: 11px; padding: 2px 7px; border-radius: 999px; font-weight: 500; }
-.b-wa { background: #d1fae5; color: #065f46; }
-.b-em { background: #dbeafe; color: #1e3a8a; }
-.b-both { background: #ede9fe; color: #4c1d95; }
-.b-none { background: #f3f4f6; color: #6b7280; }
-.b-sent { background: #d1fae5; color: #065f46; }
-.b-pending { background: #fef3c7; color: #92400e; }
-
-.howto { background: var(--info-bg); border: 1px solid var(--info-border); border-radius: var(--radius); padding: 12px 14px; margin-bottom: 14px; font-size: 13px; color: var(--text-2); line-height: 1.7; }
-.howto strong { color: var(--text); }
-
-.hint { font-size: 12px; color: var(--text-3); margin-top: 4px; }
-.spinning { animation: spin 1s linear infinite; display: inline-block; }
-@keyframes spin { to { transform: rotate(360deg); } }
-
-/* Single-tab WhatsApp queue UI */
-.wa-queue-box { background: var(--ok-bg); border: 1px solid var(--ok-border); border-radius: var(--radius); padding: 16px; text-align: center; }
-.wa-queue-name { font-size: 20px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
-.wa-queue-product { font-size: 13px; color: var(--text-2); margin-bottom: 14px; }
-.wa-queue-progress { font-size: 12px; color: var(--text-3); margin-bottom: 14px; }
-.wa-queue-btn { font-size: 16px; padding: 14px 32px; }
-
-@media (max-width: 500px) {
-  .row2 { grid-template-columns: 1fr; }
-  .stats { grid-template-columns: repeat(2, 1fr); }
-}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f3;color:#1a1a18;font-size:14px;line-height:1.5}
+header{background:#fff;border-bottom:1px solid #e4e4e0;padding:14px 20px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:10}
+.logo{width:32px;height:32px;background:#2AABEE;border-radius:8px;display:flex;align-items:center;justify-content:center}
+.logo svg{width:18px;height:18px;fill:#fff}
+h1{font-size:15px;font-weight:600}
+.sub{font-size:12px;color:#777}
+.dots{margin-left:auto;display:flex;gap:6px}
+.dot{width:8px;height:8px;border-radius:50%;background:#ddd;transition:background .2s}
+.dot.on{background:#2AABEE}.dot.done{background:#16a34a}
+main{max-width:700px;margin:0 auto;padding:20px 16px 80px}
+.card{background:#fff;border:1px solid #e4e4e0;border-radius:12px;padding:20px;margin-bottom:14px}
+.ctitle{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#777;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.ctitle b{background:#f5f5f3;border:1px solid #e4e4e0;border-radius:50%;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#1a1a18}
+label{font-size:12px;font-weight:500;color:#666;display:block;margin-bottom:4px}
+input,textarea,select{width:100%;padding:9px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;background:#f9f9f7;color:#1a1a18;font-family:inherit;outline:none;transition:border-color .15s}
+input:focus,textarea:focus,select:focus{border-color:#2AABEE;background:#fff}
+textarea{resize:vertical}
+.field{margin-bottom:12px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;border:1px solid transparent;transition:all .12s;font-family:inherit;white-space:nowrap}
+.btn:active{transform:scale(.97)}
+.btg{background:#2AABEE;color:#fff}.btg:hover{background:#1e9ad6}
+.bwa{background:#25D366;color:#fff}.bwa:hover{background:#1db954}
+.bem{background:#3b6ef6;color:#fff}.bem:hover{background:#2a5cd6}
+.bdk{background:#1a1a18;color:#fff}
+.bgh{background:transparent;color:#1a1a18;border-color:#ccc}.bgh:hover{background:#f5f5f3}
+.bsm{padding:5px 10px;font-size:12px}
+.blg{padding:12px 24px;font-size:14px;font-weight:600}
+.bbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.al{display:flex;align-items:flex-start;gap:8px;padding:10px 14px;border-radius:8px;font-size:13px;border:1px solid;margin-bottom:8px}
+.al-ok{background:#f0fdf4;border-color:#bbf7d0;color:#15803d}
+.al-err{background:#fef2f2;border-color:#fecaca;color:#dc2626}
+.al-warn{background:#fffbeb;border-color:#fde68a;color:#b45309}
+.al-info{background:#eff6ff;border-color:#bfdbfe;color:#1d4ed8}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+.stat{background:#f9f9f7;border:1px solid #e4e4e0;border-radius:8px;padding:10px;text-align:center}
+.snum{font-size:22px;font-weight:700;line-height:1}
+.slbl{font-size:11px;color:#999;margin-top:2px}
+.twrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;padding:6px 8px;font-size:11px;font-weight:600;color:#999;text-transform:uppercase;border-bottom:1px solid #e4e4e0}
+td{padding:8px;border-bottom:1px solid #f0f0ee;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#fafaf8}
+.badge{display:inline-flex;align-items:center;font-size:11px;padding:2px 7px;border-radius:999px;font-weight:500}
+.bwa2{background:#dcfce7;color:#166534}.bem2{background:#dbeafe;color:#1e40af}
+.bboth{background:#ede9fe;color:#4c1d95}.bnone{background:#f3f4f6;color:#6b7280}
+.bsent{background:#dcfce7;color:#166534}.bpend{background:#fef3c7;color:#92400e}
+.howto{background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:12px 14px;margin-bottom:14px;font-size:13px;color:#555;line-height:1.7}
+.hint{font-size:11px;color:#999;margin-top:3px}
+.spin{animation:spin 1s linear infinite;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+.qbox{background:#f0fdf4;border:2px solid #bbf7d0;border-radius:12px;padding:24px;text-align:center}
+.qprog{font-size:12px;color:#999;margin-bottom:6px}
+.qname{font-size:24px;font-weight:700;margin-bottom:4px}
+.qprod{font-size:14px;color:#666;margin-bottom:20px}
+.divider{border-top:1px solid #e4e4e0;margin:16px 0;padding-top:16px}
+@media(max-width:500px){.row2{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
 <body>
-
 <header>
-  <div class="logo">
-    <svg viewBox="0 0 24 24"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L8.316 13.02l-2.96-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.832.539z"/></svg>
-  </div>
-  <div>
-    <h1>Order Blast</h1>
-    <p>Telegram → WhatsApp & Email</p>
-  </div>
-  <div class="header-right">
-    <div class="step-dots">
-      <div class="dot active" id="d1"></div>
-      <div class="dot" id="d2"></div>
-      <div class="dot" id="d3"></div>
-      <div class="dot" id="d4"></div>
-    </div>
-  </div>
+  <div class="logo"><svg viewBox="0 0 24 24"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L8.316 13.02l-2.96-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.832.539z"/></svg></div>
+  <div><h1>Order Blast</h1><p class="sub">Telegram → WhatsApp & Email</p></div>
+  <div class="dots"><div class="dot on" id="d1"></div><div class="dot" id="d2"></div><div class="dot" id="d3"></div><div class="dot" id="d4"></div></div>
 </header>
-
 <main>
 
-<!-- STEP 1: SETUP -->
-<div class="card" id="setup-card">
-  <div class="card-title"><span>1</span> Connect Your Telegram Bot</div>
-
+<div class="card" id="card-setup">
+  <div class="ctitle"><b>1</b> Connect Telegram Bot</div>
   <div class="howto">
-    <strong>How to pull your orders:</strong><br>
-    1. Paste your Bot Token and Chat ID below<br>
-    2. Click <strong>Pull orders from Telegram</strong><br>
-    3. If it doesn't pull, use the <strong>Paste Orders</strong> tab instead<br>
-    4. Review your customers then blast WhatsApp messages one by one
+    <strong>How to use:</strong><br>
+    1. Enter your Bot Token and Chat ID then click <strong>Pull orders</strong><br>
+    2. If pull fails (webhook conflict), use the <strong>Paste orders</strong> box below<br>
+    3. Select customers and click <strong>WhatsApp all selected</strong> — messages open one at a time in the same tab
   </div>
-
-  <div class="field">
-    <label>Bot Token</label>
-    <input type="password" id="bot-token" placeholder="8459239531:AAEfTp..." autocomplete="off">
-    <div class="hint">Paste your Telegram bot token from @BotFather</div>
-  </div>
-
-  <div class="field">
-    <label>Your Chat ID</label>
-    <input type="text" id="chat-id" placeholder="e.g. 5607424830" autocomplete="off" value="5607424830">
-    <div class="hint">The Chat ID where your orders are sent</div>
-  </div>
-
+  <div class="field"><label>Bot Token</label><input type="password" id="token" placeholder="8459239531:AAEfTpK..." autocomplete="off"><div class="hint">Your Telegram bot token</div></div>
+  <div class="field"><label>Chat ID</label><input type="text" id="chatid" value="5607424830"><div class="hint">The chat where your orders arrive</div></div>
   <div class="row2">
-    <div class="field">
-      <label>Messages to fetch</label>
-      <select id="fetch-limit">
-        <option value="50">Last 50 messages</option>
-        <option value="100" selected>Last 100 messages</option>
-        <option value="200">Last 200 messages</option>
-      </select>
-    </div>
-    <div class="field">
-      <label>Keyword filter (optional)</label>
-      <input id="kw-filter" placeholder="Leave empty to get all">
-    </div>
+    <div class="field"><label>Messages to fetch</label><select id="limit"><option value="50">Last 50</option><option value="100" selected>Last 100</option><option value="200">Last 200</option></select></div>
+    <div class="field"><label>Keyword filter</label><input id="kw" placeholder="Leave empty for all"></div>
   </div>
-
-  <div class="btn-bar" style="margin-bottom:12px">
-    <button class="btn btn-tg btn-lg" onclick="fetchFromTelegram()">
-      <span id="fetch-icon">⬇</span> Pull orders from Telegram
-    </button>
-    <button class="btn btn-ghost" onclick="loadDemo()">▷ Demo data</button>
+  <div class="bbar" style="margin-bottom:12px">
+    <button class="btn btg blg" onclick="pullTelegram()"><span id="pullicon">⬇</span> Pull orders from Telegram</button>
+    <button class="btn bgh" onclick="loadDemo()">▷ Demo</button>
   </div>
-
-  <div id="fetch-status"></div>
-
-  <!-- PASTE TAB -->
-  <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:16px;">
-    <div class="card-title" style="margin-bottom:8px;"><span>!</span> Or paste orders manually</div>
-    <p style="font-size:12px;color:var(--text-2);margin-bottom:10px;">Copy order messages from your Telegram and paste below. Separate each order with <strong>---</strong></p>
-    <div class="field">
-      <textarea id="paste-orders" rows="8" placeholder="🛒 NEW ORDER — iPhone 17 Pro Max&#10;Name: John Doe&#10;Phone: 08012345678&#10;WhatsApp: +2348012345678&#10;Email: john@gmail.com&#10;---&#10;🛒 NEW ORDER — iPhone 17 Pro Max&#10;Name: Jane Smith&#10;Phone: 09087654321&#10;WhatsApp: +2349087654321&#10;Email: jane@gmail.com"></textarea>
-    </div>
-    <button class="btn btn-tg" onclick="parsePasted()">⬇ Parse pasted orders</button>
+  <div id="pull-status"></div>
+  <div class="divider">
+    <div class="ctitle" style="margin-bottom:8px"><b>!</b> Paste orders manually</div>
+    <p style="font-size:12px;color:#666;margin-bottom:10px">Copy messages from Telegram and paste below. Separate each order with <strong>---</strong></p>
+    <div class="field"><textarea id="paste" rows="7" placeholder="Name: John Doe&#10;Phone: 08012345678&#10;WhatsApp: +2348012345678&#10;Email: john@gmail.com&#10;---&#10;Name: Jane Smith&#10;Phone: 09087654321&#10;WhatsApp: +2349087654321&#10;Email: jane@gmail.com"></textarea></div>
+    <button class="btn btg" onclick="parsePaste()">⬇ Parse pasted orders</button>
   </div>
 </div>
 
-<!-- STEP 2: ORDERS TABLE -->
-<div class="card" id="orders-card" style="display:none">
+<div class="card" id="card-orders" style="display:none">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
-    <div class="card-title" style="margin-bottom:0"><span>2</span> Parsed Orders <span id="o-count" style="font-size:12px;font-weight:400;color:var(--text-3)"></span></div>
-    <div class="btn-bar">
-      <button class="btn btn-ghost btn-sm" onclick="selAll(true)">✓ All</button>
-      <button class="btn btn-ghost btn-sm" onclick="selAll(false)">✗ None</button>
-      <button class="btn btn-ghost btn-sm" onclick="addManual()">+ Add</button>
+    <div class="ctitle" style="margin-bottom:0"><b>2</b> Orders <span id="ocount" style="font-size:12px;font-weight:400;color:#999"></span></div>
+    <div class="bbar">
+      <button class="btn bgh bsm" onclick="selAll(true)">✓ All</button>
+      <button class="btn bgh bsm" onclick="selAll(false)">✗ None</button>
+      <button class="btn bgh bsm" onclick="addManual()">+ Add</button>
     </div>
   </div>
-
   <div class="stats">
-    <div class="stat"><div class="stat-num" id="st-t">0</div><div class="stat-lbl">Total</div></div>
-    <div class="stat"><div class="stat-num" id="st-w">0</div><div class="stat-lbl">WhatsApp</div></div>
-    <div class="stat"><div class="stat-num" id="st-e">0</div><div class="stat-lbl">Email</div></div>
-    <div class="stat"><div class="stat-num" id="st-s">0</div><div class="stat-lbl">Selected</div></div>
+    <div class="stat"><div class="snum" id="st-t">0</div><div class="slbl">Total</div></div>
+    <div class="stat"><div class="snum" id="st-w">0</div><div class="slbl">WhatsApp</div></div>
+    <div class="stat"><div class="snum" id="st-e">0</div><div class="slbl">Email</div></div>
+    <div class="stat"><div class="snum" id="st-s">0</div><div class="slbl">Selected</div></div>
   </div>
-
-  <div class="tbl-wrap">
+  <div class="twrap">
     <table>
       <thead><tr>
-        <th style="width:30px"><input type="checkbox" id="chk-all" onchange="selAll(this.checked)"></th>
-        <th>Name</th>
-        <th>Product</th>
-        <th>WhatsApp</th>
-        <th>Via</th>
-        <th>Status</th>
-        <th></th>
+        <th style="width:30px"><input type="checkbox" id="chkall" onchange="selAll(this.checked)"></th>
+        <th>Name</th><th>Product</th><th>WhatsApp</th><th>Via</th><th>Status</th><th></th>
       </tr></thead>
-      <tbody id="o-tbody"></tbody>
+      <tbody id="tbody"></tbody>
     </table>
   </div>
-
-  <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
-    <div class="field">
-      <label>WhatsApp Message Template</label>
-      <textarea id="tpl-wa" rows="5">Mr/Mrs {name}, You just ordered for {product} from Smartech. Your delivery will arrive in 2 to 3 days if you are not in Lagos. If you are in Lagos, be expecting it within a few minutes. Please don't order from another vendor as you have already ordered from us. Be careful — ask for a code from anyone that calls you. The code is: LIGHT.</textarea>
+  <div class="divider">
+    <div class="field"><label>WhatsApp message template</label><textarea id="tpl" rows="5">Hello {name}! 👋 This is Smartech. We noticed you showed interest in our {product}. Are you ready to place your order today? We offer FREE delivery nationwide and you pay ONLY on delivery — zero risk! 🔥 Reply YES if you are ready and we will process your order immediately. Stock is very limited!</textarea></div>
+    <div class="bbar">
+      <button class="btn bwa blg" onclick="startQueue()">📱 WhatsApp all selected</button>
+      <button class="btn bem" onclick="doEmail()">✉ Email all selected</button>
     </div>
-    <div class="btn-bar" style="margin-top:8px">
-      <button class="btn btn-wa btn-lg" onclick="startWaQueue()">📱 WhatsApp all selected (one tab)</button>
-      <button class="btn btn-em" onclick="blastEmail()">✉ Email all selected</button>
-    </div>
-    <div id="blast-st" style="margin-top:8px;font-size:13px;color:var(--text-2)"></div>
+    <div id="blast-st" style="margin-top:8px;font-size:13px;color:#666"></div>
   </div>
 </div>
 
-<!-- STEP 3: WHATSAPP QUEUE -->
-<div class="card" id="wa-queue-card" style="display:none">
-  <div class="card-title"><span>3</span> Send WhatsApp — One by One</div>
-  <p style="font-size:13px;color:var(--text-2);margin-bottom:16px;">Click the button below to open WhatsApp for each customer. After sending, come back and click <strong>Next</strong> to continue.</p>
-
-  <div class="wa-queue-box">
-    <div class="wa-queue-progress" id="q-progress">Customer 1 of 5</div>
-    <div class="wa-queue-name" id="q-name">John Doe</div>
-    <div class="wa-queue-product" id="q-product">iPhone 17 Pro Max</div>
-    <button class="btn btn-wa wa-queue-btn btn-lg" id="q-open-btn" onclick="openCurrentWa()">
+<div class="card" id="card-queue" style="display:none">
+  <div class="ctitle"><b>3</b> Send WhatsApp — one by one (same tab)</div>
+  <p style="font-size:13px;color:#666;margin-bottom:16px">Click <strong>Open WhatsApp</strong>, send the message, come back and click <strong>Sent — Next</strong>.</p>
+  <div class="qbox">
+    <div class="qprog" id="qprog">Customer 1 of 5</div>
+    <div class="qname" id="qname">Loading...</div>
+    <div class="qprod" id="qprod"></div>
+    <button class="btn bwa blg" onclick="openWa()" style="font-size:16px;padding:14px 32px;margin-bottom:16px;width:100%;justify-content:center">
       📱 Open WhatsApp for this customer
     </button>
-    <div style="margin-top:14px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
-      <button class="btn btn-ghost" onclick="skipCurrent()">⏭ Skip</button>
-      <button class="btn btn-dark" onclick="nextInQueue()">✓ Sent — Next Customer</button>
+    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+      <button class="btn bgh" onclick="skipQ()">⏭ Skip</button>
+      <button class="btn bdk blg" onclick="nextQ()">✓ Sent — Next customer</button>
     </div>
-    <div style="margin-top:12px">
-      <button class="btn btn-ghost btn-sm" onclick="endQueue()">✕ Stop & go back</button>
+    <div style="margin-top:14px">
+      <button class="btn bgh bsm" onclick="endQueue()">✕ Stop & go back</button>
     </div>
   </div>
 </div>
 
-<!-- LOG -->
-<div class="card" id="log-card" style="display:none">
-  <div class="card-title"><span>4</span> Activity Log</div>
-  <div id="log-body"><div style="text-align:center;padding:20px;color:var(--text-3)">No activity yet</div></div>
+<div class="card" id="card-log" style="display:none">
+  <div class="ctitle"><b>4</b> Activity log</div>
+  <div id="logbody"><div style="text-align:center;padding:20px;color:#999">No activity yet</div></div>
 </div>
 
 </main>
-
 <script>
-var orderList = [];
-var logEntries = [];
-var waQueue = [];
-var waQueueIdx = 0;
+var orders = [];
+var waQ = [];
+var waIdx = 0;
 var waTpl = '';
 
-function gid(id){ return document.getElementById(id); }
+function g(id){ return document.getElementById(id); }
 
-function setDot(n){
+function dot(n){
   ['d1','d2','d3','d4'].forEach(function(id,i){
-    gid(id).className = 'dot' + (i+1 < n ? ' done' : i+1 === n ? ' active' : '');
+    g(id).className = 'dot'+(i+1<n?' done':i+1===n?' on':'');
   });
 }
 
-function showAlert(targetId, type, html){
-  var el = gid(targetId);
-  if(!el) return;
-  var icons = {ok:'✅',err:'❌',warn:'⚠️',info:'ℹ️'};
-  el.innerHTML = '<div class="alert alert-'+type+'"><span>'+icons[type]+'</span><span>'+html+'</span></div>';
+function alert2(tid, type, html){
+  var icons={ok:'✅',err:'❌',warn:'⚠️',info:'ℹ️'};
+  g(tid).innerHTML='<div class="al al-'+type+'">'+icons[type]+'<span>'+html+'</span></div>';
 }
 
-// ── PARSE MESSAGES ──
-function parseMessages(msgs){
-  var keys = gid('kw-filter').value.split(',').map(function(s){ return s.trim().toLowerCase(); }).filter(Boolean);
-  var phoneRe = /(?:\+?234|0)[789]\d{9}/g;
-  var emailRe = /[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g;
-  var parsed = [];
-
-  msgs.forEach(function(msg, idx){
-    var text = (msg.text || msg.caption || '').trim();
-    if(!text) return;
-    if(keys.length && !keys.some(function(k){ return text.toLowerCase().includes(k); })) return;
-
-    var phones = Array.from(text.matchAll(phoneRe)).map(function(m){ return m[0]; });
-    var emails = Array.from(text.matchAll(emailRe)).map(function(m){ return m[0]; });
-
-    // Extract name
-    var name = 'Customer ' + (idx + 1);
-    var nameMatch = text.match(/(?:^|\n)\s*Name[:\s]+(.+)/im);
-    if(nameMatch && nameMatch[1]) name = nameMatch[1].trim().split('\n')[0].trim();
-
-    // Extract product
-    var product = 'Order item';
-    var prodMatch = text.match(/NEW ORDER[^\n]*[-—]\s*(.+)/i) ||
-                    text.match(/Product[:\s]+(.+)/i) ||
-                    text.match(/(iPhone 17[^\n]*|Samsung[^\n]*S26[^\n]*)/i);
-    if(prodMatch) product = (prodMatch[1] || prodMatch[0]).trim().replace(/[*_]/g,'').slice(0, 60);
-
-    // Extract WhatsApp number
-    var waNumber = '';
-    var waMatch = text.match(/(?:WhatsApp|Whatsapp|WA)[:\s]*\+?(\d{10,13})/i);
-    if(waMatch){
-      waNumber = waMatch[1].replace(/^0/, '234');
-    } else if(phones[0]){
-      waNumber = phones[0].replace(/\s/g,'').replace(/^\+/,'').replace(/^0/,'234');
-    }
-    var waFormatted = waNumber ? (waNumber.startsWith('234') ? '+' + waNumber : '+234' + waNumber) : '';
-
-    parsed.push({
-      id: idx + '_' + Date.now(),
-      name: name,
-      product: product,
-      wa: waFormatted,
-      email: emails[0] || '',
-      via: waFormatted && emails[0] ? 'both' : waFormatted ? 'wa' : emails[0] ? 'email' : 'none',
-      rawText: text.slice(0, 80),
-      sent: false,
-      selected: true
-    });
+function parseBlocks(msgs){
+  var keys=g('kw').value.split(',').map(function(s){return s.trim().toLowerCase();}).filter(Boolean);
+  var phRe=/(?:\+?234|0)[789]\d{9}/g;
+  var emRe=/[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g;
+  var out=[];
+  msgs.forEach(function(msg,i){
+    var txt=(msg.text||msg.caption||'').trim();
+    if(!txt)return;
+    if(keys.length&&!keys.some(function(k){return txt.toLowerCase().includes(k);}))return;
+    var ph=Array.from(txt.matchAll(phRe)).map(function(m){return m[0];});
+    var em=Array.from(txt.matchAll(emRe)).map(function(m){return m[0];});
+    var name='Customer '+(i+1);
+    var nm=txt.match(/(?:^|\n)\s*Name[:\s]+(.+)/im);
+    if(nm&&nm[1])name=nm[1].trim().split('\n')[0].trim();
+    var prod='Order item';
+    var pm=txt.match(/NEW ORDER[^\n]*[-—]\s*(.+)/i)||txt.match(/Product[:\s]+(.+)/i)||txt.match(/(iPhone 17[^\n]*|Samsung[^\n]*S26[^\n]*)/i);
+    if(pm)prod=(pm[1]||pm[0]).trim().replace(/[*_]/g,'').slice(0,60);
+    var waNum='';
+    var wm=txt.match(/(?:WhatsApp|WA)[:\s]*\+?(\d{10,13})/i);
+    if(wm){waNum=wm[1].replace(/^0/,'234');}
+    else if(ph[0]){waNum=ph[0].replace(/\s/g,'').replace(/^\+/,'').replace(/^0/,'234');}
+    if(waNum&&!waNum.startsWith('234'))waNum='234'+waNum;
+    var waFmt=waNum?'+'+waNum:'';
+    out.push({id:'o'+i+'_'+Date.now(),name:name,product:prod,wa:waFmt,email:em[0]||'',via:waFmt&&em[0]?'both':waFmt?'wa':em[0]?'email':'none',sent:false,selected:true});
   });
-  return parsed;
+  return out;
 }
 
-// ── FETCH FROM TELEGRAM ──
-async function fetchFromTelegram(){
-  var token = gid('bot-token').value.trim();
-  var chatId = gid('chat-id').value.trim();
-  if(!token){ showAlert('fetch-status','warn','Paste your Bot Token first.'); return; }
-  if(!chatId){ showAlert('fetch-status','warn','Paste your Chat ID too.'); return; }
-
-  gid('fetch-icon').textContent = '⏳';
-  showAlert('fetch-status','info','<span class="spinning">⏳</span> Connecting to Telegram...');
-  setDot(2);
-
-  var limit = parseInt(gid('fetch-limit').value);
+async function pullTelegram(){
+  var token=g('token').value.trim();
+  var chatId=g('chatid').value.trim();
+  if(!token){alert2('pull-status','warn','Paste your Bot Token first.');return;}
+  if(!chatId){alert2('pull-status','warn','Paste your Chat ID.');return;}
+  g('pullicon').textContent='⏳';
+  alert2('pull-status','info','<span class="spin">⏳</span> Connecting to Telegram...');
+  dot(2);
+  var lim=parseInt(g('limit').value);
 
   // Step 1: Delete webhook so getUpdates works
-  try {
-    await fetch('https://api.telegram.org/bot' + token + '/deleteWebhook');
-  } catch(e){}
+  try{
+    var delRes=await fetch('https://api.telegram.org/bot'+token+'/deleteWebhook?drop_pending_updates=false');
+    var delData=await delRes.json();
+    console.log('Webhook delete result:',delData);
+  }catch(e){console.log('Webhook delete failed:',e);}
+
+  // Wait a moment for webhook to be removed
+  await new Promise(function(r){setTimeout(r,1500);});
 
   // Step 2: Try getUpdates
-  try {
-    var url = 'https://api.telegram.org/bot' + token + '/getUpdates?offset=-' + limit + '&limit=' + limit;
-    var res = await fetch(url);
-    var data = await res.json();
+  try{
+    var url='https://api.telegram.org/bot'+token+'/getUpdates?limit='+lim;
+    var r=await fetch(url);
+    var d=await r.json();
+    g('pullicon').textContent='⬇';
 
-    if(!data.ok){
-      showAlert('fetch-status','err','Telegram error: ' + (data.description || 'Invalid token.'));
-      gid('fetch-icon').textContent = '⬇'; setDot(1); return;
+    if(!d.ok){
+      // If still webhook conflict, try once more after deleting
+      if(d.description&&d.description.includes('webhook')){
+        alert2('pull-status','info','<span class="spin">⏳</span> Removing webhook, retrying...');
+        await fetch('https://api.telegram.org/bot'+token+'/deleteWebhook?drop_pending_updates=true');
+        await new Promise(function(r){setTimeout(r,2000);});
+        r=await fetch(url);
+        d=await r.json();
+        g('pullicon').textContent='⬇';
+        if(!d.ok){
+          alert2('pull-status','err','Telegram error: '+(d.description||'Invalid token. Check your bot token and try again.'));
+          dot(1);return;
+        }
+      } else {
+        alert2('pull-status','err','Telegram error: '+(d.description||'Invalid token.'));
+        dot(1);return;
+      }
     }
 
-    var msgs = data.result
-      .map(function(u){ return u.message || u.channel_post; })
-      .filter(function(m){ return m && (String(m.chat.id) === String(chatId) || !chatId); });
+    var allMsgs=d.result.map(function(u){return u.message||u.channel_post;}).filter(Boolean);
 
-    // If chat filter returns nothing, use all messages
+    // Filter by chatId if provided
+    var msgs=allMsgs.filter(function(m){return !chatId||String(m.chat.id)===String(chatId);});
+    if(!msgs.length&&allMsgs.length)msgs=allMsgs; // fallback: use all if chat filter gives nothing
+
     if(!msgs.length){
-      msgs = data.result.map(function(u){ return u.message || u.channel_post; }).filter(Boolean);
+      alert2('pull-status','warn','Pulled '+d.result.length+' updates but no messages found. Make sure orders have been sent to your bot recently. You can also paste orders manually below.');
+      dot(1);return;
     }
 
-    gid('fetch-icon').textContent = '⬇';
-
-    if(!msgs.length){
-      showAlert('fetch-status','warn','No messages found. Your bot may use webhooks which blocks getUpdates. Please use the <strong>Paste Orders</strong> section below to paste your orders manually.');
-      setDot(1); return;
+    orders=parseBlocks(msgs);
+    if(!orders.length){
+      alert2('pull-status','warn','Pulled '+msgs.length+' messages but could not parse customer details. Try pasting orders manually below.');
+      dot(1);return;
     }
+    alert2('pull-status','ok','✅ Pulled '+msgs.length+' messages → found <strong>'+orders.length+' orders</strong> with customer details.');
+    showOrders();dot(3);
 
-    orderList = parseMessages(msgs);
-
-    if(!orderList.length){
-      showAlert('fetch-status','warn','Pulled ' + msgs.length + ' messages but could not parse orders. Try the paste option below.');
-      setDot(1); return;
-    }
-
-    showAlert('fetch-status','ok','Pulled ' + msgs.length + ' messages → found <strong>' + orderList.length + ' orders</strong>.');
-    renderAll(); setDot(3);
-
-  } catch(e){
-    gid('fetch-icon').textContent = '⬇';
-    showAlert('fetch-status','err','Could not reach Telegram: ' + e.message);
-    setDot(1);
+  }catch(e){
+    g('pullicon').textContent='⬇';
+    alert2('pull-status','err','Could not reach Telegram. Check your internet connection.<br><small>Error: '+e.message+'</small>');
+    dot(1);
   }
 }
 
-// ── PARSE PASTED ORDERS ──
-function parsePasted(){
-  var text = gid('paste-orders').value.trim();
-  if(!text){ showAlert('fetch-status','warn','Paste your orders first.'); return; }
-
-  var blocks = text.split('---').filter(function(t){ return t.trim(); });
-  var fakeMsgs = blocks.map(function(t, i){
-    return { text: t.trim(), message_id: i + 1, chat: { id: 0 } };
-  });
-
-  orderList = parseMessages(fakeMsgs);
-
-  if(!orderList.length){
-    showAlert('fetch-status','warn','Could not parse any orders. Make sure each order has Name: and Phone: fields, separated by ---');
-    return;
-  }
-
-  showAlert('fetch-status','ok','Parsed <strong>' + orderList.length + ' orders</strong> successfully.');
-  renderAll(); setDot(3);
+function parsePaste(){
+  var txt=g('paste').value.trim();
+  if(!txt){alert2('pull-status','warn','Paste your orders first.');return;}
+  var blocks=txt.split('---').filter(function(t){return t.trim();});
+  var fake=blocks.map(function(t,i){return{text:t.trim(),message_id:i,chat:{id:0}};});
+  orders=parseBlocks(fake);
+  if(!orders.length){alert2('pull-status','warn','Could not parse orders. Make sure each order has Name: and Phone: or WhatsApp: fields.');return;}
+  alert2('pull-status','ok','Parsed <strong>'+orders.length+' orders</strong> successfully.');
+  showOrders();dot(3);
 }
 
-// ── DEMO ──
 function loadDemo(){
-  orderList = [
+  orders=[
     {id:'d1',name:'Amaka Eze',product:'iPhone 17 Pro Max',wa:'+2348012345678',email:'amaka@gmail.com',via:'both',sent:false,selected:true},
     {id:'d2',name:'Chidi Okafor',product:'Samsung S26 Ultra',wa:'+2348098765432',email:'',via:'wa',sent:false,selected:true},
     {id:'d3',name:'Fatima Bello',product:'iPhone 17 Pro Max',wa:'+2348055443322',email:'fatima@yahoo.com',via:'both',sent:false,selected:true},
-    {id:'d4',name:'Ngozi Adeyemi',product:'Samsung S26 Ultra',wa:'+2349011223344',email:'ngozi@outlook.com',via:'both',sent:false,selected:true},
-    {id:'d5',name:'Emeka Nwosu',product:'iPhone 17 Pro Max',wa:'+2348031122334',email:'',via:'wa',sent:false,selected:true},
+    {id:'d4',name:'Ngozi Adeyemi',product:'Samsung S26 Ultra',wa:'+2349011223344',email:'',via:'wa',sent:false,selected:true},
+    {id:'d5',name:'Emeka Nwosu',product:'iPhone 17 Pro Max',wa:'+2348031122334',email:'emeka@gmail.com',via:'both',sent:false,selected:true},
   ];
-  showAlert('fetch-status','ok','Demo loaded — 5 sample customers.');
-  renderAll(); setDot(3);
+  alert2('pull-status','ok','Demo loaded — 5 sample customers.');
+  showOrders();dot(3);
 }
 
-// ── RENDER ──
-function renderAll(){
+function showOrders(){
   renderTable();
-  gid('orders-card').style.display = 'block';
-  gid('log-card').style.display = 'block';
-  window.scrollTo({top: gid('orders-card').offsetTop - 20, behavior: 'smooth'});
+  g('card-orders').style.display='block';
+  g('card-log').style.display='block';
+  window.scrollTo({top:g('card-orders').offsetTop-20,behavior:'smooth'});
 }
 
 function renderTable(){
   updateStats();
-  var tbody = gid('o-tbody');
-  if(!orderList.length){
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text-3)">No orders found</td></tr>';
-    return;
-  }
-  tbody.innerHTML = orderList.map(function(o){
-    var vb = o.via==='both' ? '<span class="badge b-both">Both</span>' :
-             o.via==='wa' ? '<span class="badge b-wa">WA</span>' :
-             o.via==='email' ? '<span class="badge b-em">Email</span>' :
-             '<span class="badge b-none">None</span>';
-    var sb = o.sent ? '<span class="badge b-sent">Sent</span>' : '<span class="badge b-pending">Pending</span>';
-    return '<tr>' +
-      '<td><input type="checkbox"' + (o.selected ? ' checked' : '') + ' onchange="togSel(\'' + o.id + '\',this.checked)"></td>' +
-      '<td style="font-weight:500">' + o.name + '</td>' +
-      '<td style="color:var(--text-2);font-size:12px">' + o.product.slice(0,30) + '</td>' +
-      '<td style="font-size:11px;font-family:monospace">' + (o.wa || '<span style="color:#aaa">—</span>') + '</td>' +
-      '<td>' + vb + '</td>' +
-      '<td>' + sb + '</td>' +
-      '<td><button class="btn btn-ghost btn-sm" onclick="editOrder(\'' + o.id + '\')">✏</button></td>' +
-    '</tr>';
+  var tb=g('tbody');
+  if(!orders.length){tb.innerHTML='<tr><td colspan="7" style="text-align:center;padding:24px;color:#999">No orders</td></tr>';return;}
+  tb.innerHTML=orders.map(function(o){
+    var vb=o.via==='both'?'<span class="badge bboth">Both</span>':o.via==='wa'?'<span class="badge bwa2">WA</span>':o.via==='email'?'<span class="badge bem2">Email</span>':'<span class="badge bnone">None</span>';
+    var sb=o.sent?'<span class="badge bsent">Sent</span>':'<span class="badge bpend">Pending</span>';
+    return '<tr><td><input type="checkbox"'+(o.selected?' checked':'')+' onchange="tog(\''+o.id+'\',this.checked)"></td><td style="font-weight:500">'+o.name+'</td><td style="color:#666;font-size:12px">'+o.product.slice(0,28)+'</td><td style="font-size:11px;font-family:monospace">'+(o.wa||'<span style="color:#bbb">—</span>')+'</td><td>'+vb+'</td><td>'+sb+'</td><td><button class="btn bgh bsm" onclick="edit(\''+o.id+'\')">✏</button></td></tr>';
   }).join('');
 }
 
 function updateStats(){
-  var sel = orderList.filter(function(o){ return o.selected; }).length;
-  gid('st-t').textContent = orderList.length;
-  gid('st-w').textContent = orderList.filter(function(o){ return o.wa; }).length;
-  gid('st-e').textContent = orderList.filter(function(o){ return o.email; }).length;
-  gid('st-s').textContent = sel;
-  gid('o-count').textContent = '(' + orderList.length + ')';
+  g('st-t').textContent=orders.length;
+  g('st-w').textContent=orders.filter(function(o){return o.wa;}).length;
+  g('st-e').textContent=orders.filter(function(o){return o.email;}).length;
+  g('st-s').textContent=orders.filter(function(o){return o.selected;}).length;
+  g('ocount').textContent='('+orders.length+')';
 }
 
-function togSel(id, val){
-  var o = orderList.find(function(o){ return o.id == id; });
-  if(o){ o.selected = val; updateStats(); }
-}
-
-function selAll(val){
-  orderList.forEach(function(o){ o.selected = val; });
-  renderTable();
-  gid('chk-all').checked = val;
-}
+function tog(id,val){var o=orders.find(function(o){return o.id==id;});if(o){o.selected=val;updateStats();}}
+function selAll(val){orders.forEach(function(o){o.selected=val;});renderTable();g('chkall').checked=val;}
 
 function addManual(){
-  var name = prompt('Customer name:','');
-  if(!name) return;
-  var product = prompt('Product ordered:','iPhone 17 Pro Max') || 'Order item';
-  var wa = prompt('WhatsApp number (e.g. +2348012345678):','') || '';
-  var email = prompt('Email address:','') || '';
-  orderList.push({
-    id: 'm_' + Date.now(),
-    name: name.trim(),
-    product: product.trim(),
-    wa: wa.trim(),
-    email: email.trim(),
-    via: wa && email ? 'both' : wa ? 'wa' : email ? 'email' : 'none',
-    sent: false,
-    selected: true
-  });
-  renderAll();
+  var nm=prompt('Customer name:','');if(!nm)return;
+  var pr=prompt('Product:','iPhone 17 Pro Max')||'Order item';
+  var wa=prompt('WhatsApp (e.g. +2348012345678):','')||'';
+  var em=prompt('Email:','')||'';
+  orders.push({id:'m'+Date.now(),name:nm.trim(),product:pr.trim(),wa:wa.trim(),email:em.trim(),via:wa&&em?'both':wa?'wa':em?'email':'none',sent:false,selected:true});
+  showOrders();
 }
 
-function editOrder(id){
-  var o = orderList.find(function(o){ return o.id == id; });
-  if(!o) return;
-  var name = prompt('Customer name:', o.name);
-  if(name !== null) o.name = name.trim() || o.name;
-  var prod = prompt('Product:', o.product);
-  if(prod !== null) o.product = prod.trim() || o.product;
-  var wa = prompt('WhatsApp number:', o.wa);
-  if(wa !== null) o.wa = wa.trim();
-  var email = prompt('Email:', o.email);
-  if(email !== null) o.email = email.trim();
-  o.via = o.wa && o.email ? 'both' : o.wa ? 'wa' : o.email ? 'email' : 'none';
+function edit(id){
+  var o=orders.find(function(o){return o.id==id;});if(!o)return;
+  var n=prompt('Name:',o.name);if(n!==null)o.name=n.trim()||o.name;
+  var p=prompt('Product:',o.product);if(p!==null)o.product=p.trim()||o.product;
+  var w=prompt('WhatsApp:',o.wa);if(w!==null)o.wa=w.trim();
+  var e=prompt('Email:',o.email);if(e!==null)o.email=e.trim();
+  o.via=o.wa&&o.email?'both':o.wa?'wa':o.email?'email':'none';
   renderTable();
 }
 
-// ── WHATSAPP QUEUE (ONE TAB) ──
-function startWaQueue(){
-  waTpl = gid('tpl-wa').value;
-  waQueue = orderList.filter(function(o){ return o.selected && o.wa; });
-  if(!waQueue.length){
-    gid('blast-st').textContent = 'No selected customers with WhatsApp numbers.';
-    return;
-  }
-  waQueueIdx = 0;
-  gid('wa-queue-card').style.display = 'block';
-  gid('orders-card').style.display = 'none';
-  updateQueueUI();
-  window.scrollTo({top: 0, behavior: 'smooth'});
-  setDot(4);
+function fill(tpl,o){return tpl.replace(/{name}/g,o.name).replace(/{product}/g,o.product);}
+
+function startQueue(){
+  waTpl=g('tpl').value;
+  waQ=orders.filter(function(o){return o.selected&&o.wa;});
+  if(!waQ.length){g('blast-st').textContent='No selected customers with WhatsApp numbers.';return;}
+  waIdx=0;
+  g('card-queue').style.display='block';
+  g('card-orders').style.display='none';
+  updateQ();
+  window.scrollTo({top:0,behavior:'smooth'});
+  dot(4);
 }
 
-function updateQueueUI(){
-  if(waQueueIdx >= waQueue.length){
-    endQueue();
-    return;
-  }
-  var o = waQueue[waQueueIdx];
-  gid('q-progress').textContent = 'Customer ' + (waQueueIdx + 1) + ' of ' + waQueue.length;
-  gid('q-name').textContent = o.name;
-  gid('q-product').textContent = o.product;
-  gid('q-open-btn').textContent = '📱 Open WhatsApp for ' + o.name;
+function updateQ(){
+  if(waIdx>=waQ.length){endQueue();return;}
+  var o=waQ[waIdx];
+  g('qprog').textContent='Customer '+(waIdx+1)+' of '+waQ.length;
+  g('qname').textContent=o.name;
+  g('qprod').textContent=o.product;
 }
 
-function fillTemplate(tpl, o){
-  return tpl
-    .replace(/{name}/g, o.name)
-    .replace(/{product}/g, o.product)
-    .replace(/{wa}/g, o.wa)
-    .replace(/{email}/g, o.email);
+function openWa(){
+  var o=waQ[waIdx];
+  var ph=o.wa.replace(/\D/g,'');
+  var msg=fill(waTpl,o);
+  location.href='https://wa.me/'+ph+'?text='+encodeURIComponent(msg);
+  addLog(o.name,'WhatsApp',o.product);
 }
 
-function openCurrentWa(){
-  var o = waQueue[waQueueIdx];
-  var phone = o.wa.replace(/\D/g,'');
-  var msg = fillTemplate(waTpl, o);
-  var url = 'https://wa.me/' + phone + '?text=' + encodeURIComponent(msg);
-  window.open(url, '_blank');
-  addLog(o.name, 'WhatsApp', o.product);
-}
-
-function nextInQueue(){
-  var o = waQueue[waQueueIdx];
-  o.sent = true;
-  waQueueIdx++;
-  if(waQueueIdx >= waQueue.length){
-    endQueue();
-  } else {
-    updateQueueUI();
-  }
-}
-
-function skipCurrent(){
-  waQueueIdx++;
-  if(waQueueIdx >= waQueue.length){
-    endQueue();
-  } else {
-    updateQueueUI();
-  }
-}
+function nextQ(){waQ[waIdx].sent=true;waIdx++;waIdx>=waQ.length?endQueue():updateQ();}
+function skipQ(){waIdx++;waIdx>=waQ.length?endQueue():updateQ();}
 
 function endQueue(){
-  gid('wa-queue-card').style.display = 'none';
-  gid('orders-card').style.display = 'block';
-  var sentCount = waQueue.filter(function(o){ return o.sent; }).length;
-  gid('blast-st').textContent = '✅ Done — ' + sentCount + ' WhatsApp message(s) sent.';
+  g('card-queue').style.display='none';
+  g('card-orders').style.display='block';
+  var s=waQ.filter(function(o){return o.sent;}).length;
+  g('blast-st').textContent='✅ Done — '+s+' WhatsApp message(s) sent.';
   renderTable();
-  window.scrollTo({top: gid('orders-card').offsetTop - 20, behavior: 'smooth'});
+  window.scrollTo({top:g('card-orders').offsetTop-20,behavior:'smooth'});
 }
 
-// ── EMAIL BLAST ──
-function blastEmail(){
-  var targets = orderList.filter(function(o){ return o.selected && o.email; });
-  if(!targets.length){ gid('blast-st').textContent = 'No selected customers with email addresses.'; return; }
-  var subj = 'Your Smartech Order Confirmation';
-  var tpl = gid('tpl-wa').value;
-  targets.forEach(function(o){
-    var body = fillTemplate(tpl, o);
-    window.location.href = 'mailto:' + o.email + '?subject=' + encodeURIComponent(subj) + '&body=' + encodeURIComponent(body);
-    addLog(o.name, 'Email', o.product);
-    o.sent = true;
+function doEmail(){
+  var t=orders.filter(function(o){return o.selected&&o.email;});
+  if(!t.length){g('blast-st').textContent='No customers with email selected.';return;}
+  t.forEach(function(o){
+    location.href='mailto:'+o.email+'?subject=Your+Smartech+Order+Confirmation&body='+encodeURIComponent(fill(g('tpl').value,o));
+    addLog(o.name,'Email',o.product);o.sent=true;
   });
   renderTable();
-  gid('blast-st').textContent = '✅ Done — ' + targets.length + ' email(s) opened.';
+  g('blast-st').textContent='✅ Done — '+t.length+' email(s) opened.';
 }
 
-// ── LOG ──
-function addLog(name, type, product){
-  var wrap = gid('log-body');
-  var icon = type === 'WhatsApp' ? '📱' : '✉';
-  var badge = type === 'WhatsApp' ? 'b-wa' : 'b-em';
-  var row = document.createElement('div');
-  row.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;';
-  row.innerHTML = '<span>' + icon + ' <strong>' + name + '</strong> — ' + product.slice(0,30) + '</span>' +
-    '<span class="badge ' + badge + '">' + type + '</span>' +
-    '<span style="color:var(--text-3);font-size:11px">' + new Date().toLocaleTimeString() + '</span>';
-  if(wrap.querySelector('div[style]') === null || wrap.innerHTML.includes('No activity')){
-    wrap.innerHTML = '';
-  }
-  wrap.prepend(row);
+function addLog(name,type,prod){
+  var w=g('logbody');
+  var ic=type==='WhatsApp'?'📱':'✉';
+  var bc=type==='WhatsApp'?'bwa2':'bem2';
+  var r=document.createElement('div');
+  r.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f0f0ee;font-size:13px;';
+  r.innerHTML='<span>'+ic+' <strong>'+name+'</strong> — '+prod.slice(0,30)+'</span><span class="badge '+bc+'">'+type+'</span><span style="color:#999;font-size:11px">'+new Date().toLocaleTimeString()+'</span>';
+  if(w.innerHTML.includes('No activity'))w.innerHTML='';
+  w.prepend(r);
 }
 </script>
 </body>
