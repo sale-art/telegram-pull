@@ -601,4 +601,663 @@ function addLog(name,type,product){
 prevUpdate();
 </script>
 </body>
+</html>function parseMessages(msgs){
+  const keys=$('kw-filter').value.split(',').map(s=>s.trim().toLowerCase()).filter(Boolean);
+  const phoneRe=/(?:\+?234|0)[789]\d{9}/g;
+  const emailRe=/[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g;
+  const parsed=[];
+  msgs.forEach((msg,idx)=>{
+    const text=(msg.text||msg.caption||'').trim();
+    if(!text)return;
+    if(keys.length&&!keys.some(k=>text.toLowerCase().includes(k)))return;
+
+    const phones=[...text.matchAll(phoneRe)].map(m=>m[0]);
+    const emails=[...text.matchAll(emailRe)].map(m=>m[0]);
+
+    // Extract name - match "Name: John Doe" pattern
+    let name = 'Customer '+(idx+1);
+    const nameMatch = text.match(/(?:^|
+)\s*Name[:\s]+(.+)/im);
+    if(nameMatch && nameMatch[1]) name = nameMatch[1].trim().split('
+')[0].trim();
+
+    // Extract product - match order title line or "Product:" field
+    let product = 'Order item';
+    const prodLineMatch = text.match(/NEW ORDER[^
+]*[-—]\s*(.+)/i) ||
+                          text.match(/Product[:\s]+(.+)/i) ||
+                          text.match(/(?:iPhone|Samsung|Galaxy|S26|iPhone 17)[^
+]*/i);
+    if(prodLineMatch) product = (prodLineMatch[1]||prodLineMatch[0]).trim().slice(0,55);
+
+    // Extract WhatsApp - prefer WhatsApp field, else phone
+    let waNumber = '';
+    const waMatch = text.match(/(?:WhatsApp|WA|Whatsapp)[:\s+\d]*([0-9]{10,13})/i);
+    if(waMatch) {
+      waNumber = waMatch[1];
+      if(!waNumber.startsWith('+') && !waNumber.startsWith('234')) waNumber = '234' + waNumber.replace(/^0/,'');
+    } else if(phones[0]) {
+      waNumber = phones[0].replace(/^0/,'234').replace(/^\+/,'');
+    }
+
+    // Format phone for wa.me link
+    const waFormatted = waNumber ? '+' + waNumber.replace(/^\+/,'') : '';
+
+    parsed.push({
+      id: msg.message_id||Date.now()+Math.random(),
+      name,
+      product,
+      wa: waFormatted,
+      email: emails[0]||'',
+      via: waFormatted&&emails[0]?'both':waFormatted?'wa':emails[0]?'email':'none',
+      rawText: text.slice(0,80),
+      chatId: msg.chat?msg.chat.id:'',
+      sent: false,
+      selected: true
+    });
+  });
+  return parsed;
+}!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Order Blast — Telegram to WhatsApp/Email</title>
+<style>
+  :root {
+    --bg: #f7f7f5;
+    --surface: #ffffff;
+    --border: #e4e4e0;
+    --border-strong: #c8c8c2;
+    --text: #1a1a18;
+    --text-2: #5a5a56;
+    --text-3: #9a9a94;
+    --tg: #2AABEE;
+    --wa: #25D366;
+    --em: #3b6ef6;
+    --accent: #1a1a18;
+    --ok: #16a34a;
+    --ok-bg: #f0fdf4;
+    --ok-border: #bbf7d0;
+    --err: #dc2626;
+    --err-bg: #fef2f2;
+    --err-border: #fecaca;
+    --warn: #d97706;
+    --warn-bg: #fffbeb;
+    --warn-border: #fde68a;
+    --info: #2563eb;
+    --info-bg: #eff6ff;
+    --info-border: #bfdbfe;
+    --radius: 8px;
+    --radius-lg: 12px;
+    --mono: 'Courier New', monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; min-height: 100vh; }
+
+  header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 20px; display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 10; }
+  .logo { width: 32px; height: 32px; background: var(--tg); border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .logo svg { width: 18px; height: 18px; fill: #fff; }
+  header h1 { font-size: 15px; font-weight: 600; }
+  header p { font-size: 12px; color: var(--text-2); }
+  .header-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  .step-dots { display: flex; gap: 6px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); transition: background .2s; }
+  .dot.active { background: var(--tg); }
+  .dot.done { background: var(--ok); }
+
+  main { max-width: 700px; margin: 0 auto; padding: 20px 16px 60px; }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; margin-bottom: 16px; }
+  .card-title { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--text-2); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+  .card-title span { background: var(--bg); border: 1px solid var(--border); border-radius: 50%; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; color: var(--text); flex-shrink: 0; }
+
+  label { font-size: 12px; font-weight: 500; color: var(--text-2); display: block; margin-bottom: 5px; }
+  input, textarea, select { width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 13px; background: var(--bg); color: var(--text); font-family: inherit; outline: none; transition: border-color .15s; }
+  input:focus, textarea:focus, select:focus { border-color: var(--tg); background: #fff; }
+  input[type="password"] { letter-spacing: .1em; }
+  textarea { resize: vertical; }
+  .field { margin-bottom: 12px; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+
+  .btn { display: inline-flex; align-items: center; gap: 7px; padding: 9px 16px; border-radius: var(--radius); font-size: 13px; font-weight: 500; cursor: pointer; border: 1px solid transparent; transition: all .12s; font-family: inherit; white-space: nowrap; }
+  .btn:active { transform: scale(.97); }
+  .btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .btn-primary:hover { background: #333; }
+  .btn-tg { background: var(--tg); color: #fff; border-color: var(--tg); }
+  .btn-tg:hover { background: #229ED9; }
+  .btn-wa { background: var(--wa); color: #fff; border-color: var(--wa); }
+  .btn-wa:hover { background: #1db954; }
+  .btn-em { background: var(--em); color: #fff; border-color: var(--em); }
+  .btn-em:hover { background: #2755c8; }
+  .btn-ghost { background: transparent; color: var(--text); border-color: var(--border-strong); }
+  .btn-ghost:hover { background: var(--bg); }
+  .btn-danger { background: transparent; color: var(--err); border-color: #fecaca; }
+  .btn-danger:hover { background: var(--err-bg); }
+  .btn-sm { padding: 5px 10px; font-size: 12px; }
+  .btn-lg { padding: 11px 24px; font-size: 14px; }
+  .btn-bar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+  .alert { display: flex; align-items: flex-start; gap: 9px; padding: 10px 14px; border-radius: var(--radius); font-size: 13px; line-height: 1.5; margin-bottom: 12px; border: 1px solid; }
+  .alert-ok { background: var(--ok-bg); border-color: var(--ok-border); color: var(--ok); }
+  .alert-err { background: var(--err-bg); border-color: var(--err-border); color: var(--err); }
+  .alert-warn { background: var(--warn-bg); border-color: var(--warn-border); color: var(--warn); }
+  .alert-info { background: var(--info-bg); border-color: var(--info-border); color: var(--info); }
+  .alert-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+  .alert span { color: var(--text); }
+  .alert strong { color: var(--text); }
+
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 14px; }
+  .stat { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px; text-align: center; }
+  .stat-num { font-size: 22px; font-weight: 700; line-height: 1; }
+  .stat-lbl { font-size: 11px; color: var(--text-3); margin-top: 3px; }
+
+  .tbl-wrap { overflow-x: auto; margin: 0 -4px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; table-layout: fixed; }
+  th { text-align: left; padding: 6px 8px; font-size: 11px; font-weight: 600; color: var(--text-3); text-transform: uppercase; letter-spacing: .04em; border-bottom: 1px solid var(--border); }
+  td { padding: 7px 8px; border-bottom: 1px solid var(--border); vertical-align: middle; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--bg); }
+  tr.warn-row td { background: #fffbeb; }
+
+  .badge { display: inline-flex; align-items: center; font-size: 11px; padding: 2px 7px; border-radius: 999px; font-weight: 500; white-space: nowrap; }
+  .b-wa { background: #d1fae5; color: #065f46; }
+  .b-em { background: #dbeafe; color: #1e3a8a; }
+  .b-both { background: #ede9fe; color: #4c1d95; }
+  .b-none { background: #f3f4f6; color: #6b7280; }
+  .b-sent { background: #d1fae5; color: #065f46; }
+  .b-pending { background: #fef3c7; color: #92400e; }
+
+  .tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 14px; gap: 0; }
+  .tab { padding: 8px 14px; font-size: 13px; cursor: pointer; border: none; background: none; color: var(--text-2); border-bottom: 2px solid transparent; margin-bottom: -1px; font-family: inherit; font-weight: 500; }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--tg); border-bottom-color: var(--tg); }
+  .tpl-prev { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; font-size: 13px; color: var(--text-2); white-space: pre-wrap; line-height: 1.6; margin-top: 6px; min-height: 60px; }
+
+  .action-strip { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding-top: 14px; border-top: 1px solid var(--border); margin-top: 14px; }
+
+  .howto { background: var(--info-bg); border: 1px solid var(--info-border); border-radius: var(--radius); padding: 12px 14px; margin-bottom: 14px; font-size: 13px; color: var(--text-2); line-height: 1.7; }
+  .howto strong { color: var(--text); }
+  .howto code { background: #dbeafe; color: #1e40af; padding: 1px 5px; border-radius: 4px; font-family: var(--mono); font-size: 12px; }
+
+  .log-row { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .log-row:last-child { border-bottom: none; }
+  .log-icon { font-size: 16px; margin-right: 6px; }
+  .empty { text-align: center; padding: 32px 20px; color: var(--text-3); font-size: 13px; }
+  .empty-icon { font-size: 32px; display: block; margin-bottom: 8px; }
+
+  .spinning { animation: spin 1s linear infinite; display: inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .token-hint { font-size: 12px; color: var(--text-3); margin-top: 4px; }
+  .sample { background: #f8f8f6; border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; font-size: 12px; font-family: var(--mono); color: var(--text-2); margin: 6px 0; line-height: 1.6; }
+
+  @media (max-width: 500px) {
+    .row2, .row3 { grid-template-columns: 1fr; }
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    header h1 { font-size: 14px; }
+    .btn-lg { padding: 9px 16px; font-size: 13px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <svg viewBox="0 0 24 24"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L8.316 13.02l-2.96-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.832.539z"/></svg>
+  </div>
+  <div>
+    <h1>Order Blast</h1>
+    <p>Telegram → WhatsApp &amp; Email</p>
+  </div>
+  <div class="header-right">
+    <div class="step-dots">
+      <div class="dot active" id="d1" title="Connect bot"></div>
+      <div class="dot" id="d2" title="Pull orders"></div>
+      <div class="dot" id="d3" title="Review"></div>
+      <div class="dot" id="d4" title="Blast"></div>
+    </div>
+  </div>
+</header>
+
+<main>
+
+<!-- STEP 1: BOT SETUP -->
+<div class="card" id="setup-card">
+  <div class="card-title"><span>1</span> Connect your Telegram bot</div>
+
+  <div class="howto">
+    <strong>How to get your Bot Token:</strong><br>
+    1. Open Telegram → search <strong>@BotFather</strong> → send <code>/newbot</code><br>
+    2. Give it a name &amp; username → BotFather gives you a token like <code>123456789:ABCdef...</code><br>
+    3. Have customers message that bot with their order, name, phone &amp; email<br>
+    4. Paste the token below and click <strong>Pull orders</strong>
+  </div>
+
+  <div class="field">
+    <label>Bot token (from @BotFather)</label>
+    <input type="password" id="bot-token" placeholder="123456789:ABCdefGHI..." autocomplete="off">
+    <div class="token-hint">Your token stays in this page only — never sent anywhere except Telegram's own servers.</div>
+  </div>
+
+  <div class="field">
+    <label>Your Telegram Chat ID <span style="color:#2563eb;font-size:11px">(required to pull your orders)</span></label>
+    <input type="text" id="chat-id" placeholder="e.g. 5607424830" autocomplete="off">
+    <div class="token-hint">This is the Chat ID where your orders are sent. Find it in your Telegram bot settings.</div>
+  </div>
+
+  <div class="row2">
+    <div class="field">
+      <label>Messages to fetch</label>
+      <select id="fetch-limit">
+        <option value="50">Last 50 messages</option>
+        <option value="100" selected>Last 100 messages</option>
+        <option value="200">Last 200 messages</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Keyword filter (optional)</label>
+      <input id="kw-filter" placeholder="order, wants, request…">
+    </div>
+  </div>
+
+  <div class="row2">
+    <div class="field">
+      <label>Your pickup contact number</label>
+      <input id="cfg-contact" value="09133656700">
+    </div>
+    <div class="field">
+      <label>Delivery window</label>
+      <select id="cfg-window">
+        <option value="3 to 4 days">3 to 4 days</option>
+        <option value="2 to 3 days">2 to 3 days</option>
+        <option value="5 to 7 days">5 to 7 days</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="btn-bar">
+    <button class="btn btn-tg btn-lg" onclick="fetchOrders()">
+      <span id="fetch-icon">⬇</span> Pull orders from Telegram
+    </button>
+    <button class="btn btn-ghost" onclick="loadDemo()">▷ Load demo data</button>
+  </div>
+  <div id="fetch-status" style="margin-top:12px"></div>
+
+  <!-- MANUAL PASTE SECTION -->
+  <div id="manual-paste-section" style="display:none;margin-top:16px;border-top:1px solid var(--border);padding-top:16px;">
+    <div class="card-title" style="margin-bottom:8px;"><span>!</span> Paste your Telegram orders manually</div>
+    <p style="font-size:12px;color:var(--text-2);margin-bottom:8px;">Copy your order messages from Telegram and paste them below. Separate each order with <strong>---</strong></p>
+    <div class="field">
+      <textarea id="paste-orders" rows="8" placeholder="Name: John Doe&#10;Phone: 08012345678&#10;Email: john@gmail.com&#10;Product: iPhone 17 Pro Max&#10;---&#10;Name: Jane Smith&#10;Phone: 09087654321&#10;Product: Samsung S26 Ultra"></textarea>
+    </div>
+    <button class="btn btn-tg" onclick="fetchFromPaste()">⬇ Parse pasted orders</button>
+  </div>
+</div>
+
+<!-- STEP 2: ORDERS TABLE -->
+<div class="card" id="orders-card" style="display:none">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+    <div class="card-title" style="margin-bottom:0"><span>2</span> Parsed orders <span id="o-count" style="font-size:12px;font-weight:400;color:var(--text-3);background:none;border:none;width:auto;height:auto"></span></div>
+    <div class="btn-bar">
+      <button class="btn btn-ghost btn-sm" onclick="selAll(true)">✓ All</button>
+      <button class="btn btn-ghost btn-sm" onclick="selAll(false)">✗ None</button>
+      <button class="btn btn-ghost btn-sm" onclick="addManual()">+ Add</button>
+      <button class="btn btn-ghost btn-sm" onclick="fetchOrders()">↻ Re-fetch</button>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-num" id="st-t">0</div><div class="stat-lbl">Total</div></div>
+    <div class="stat"><div class="stat-num" id="st-w">0</div><div class="stat-lbl">WhatsApp</div></div>
+    <div class="stat"><div class="stat-num" id="st-e">0</div><div class="stat-lbl">Email</div></div>
+    <div class="stat"><div class="stat-num" id="st-s">0</div><div class="stat-lbl">Selected</div></div>
+  </div>
+
+  <div id="warn-box"></div>
+
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr>
+        <th style="width:30px"><input type="checkbox" id="chk-all" onchange="selAll(this.checked)"></th>
+        <th style="width:90px">Name</th>
+        <th style="width:130px">Product</th>
+        <th style="width:120px">WhatsApp</th>
+        <th style="width:130px">Email</th>
+        <th style="width:60px">Via</th>
+        <th style="width:58px">Status</th>
+        <th style="width:38px"></th>
+      </tr></thead>
+      <tbody id="o-tbody"></tbody>
+    </table>
+  </div>
+
+  <div class="action-strip">
+    <button class="btn btn-wa" onclick="blast('wa')">📱 WhatsApp all selected</button>
+    <button class="btn btn-em" onclick="blast('email')">✉ Email all selected</button>
+    <button class="btn btn-primary btn-lg" onclick="blast('both')">⚡ Send both to all selected</button>
+    <span id="blast-st" style="font-size:12px;color:var(--text-3);margin-left:4px"></span>
+  </div>
+</div>
+
+<!-- TEMPLATES -->
+<div class="card" id="tpl-card" style="display:none">
+  <div class="card-title"><span>3</span> Message templates</div>
+  <div class="tabs">
+    <button class="tab active" onclick="swTpl('wa',this)">WhatsApp</button>
+    <button class="tab" onclick="swTpl('email',this)">Email</button>
+    <button class="tab" onclick="swTpl('fu',this)">Follow-up (after YES)</button>
+  </div>
+  <div id="tp-wa">
+    <div style="font-size:12px;color:var(--text-3);margin-bottom:6px">Variables: <code style="background:#f0f0ef;padding:1px 4px;border-radius:3px;font-family:monospace">{name}</code> <code style="background:#f0f0ef;padding:1px 4px;border-radius:3px;font-family:monospace">{product}</code> <code style="background:#f0f0ef;padding:1px 4px;border-radius:3px;font-family:monospace">{deadline}</code> <code style="background:#f0f0ef;padding:1px 4px;border-radius:3px;font-family:monospace">{contact}</code></div>
+    <textarea id="tpl-wa" rows="6" oninput="prevUpdate()">Hello {name} 👋,
+
+We received your order for *{product}* and want to confirm — do you still need it?
+
+Reply *YES* or *NO* so we can process your delivery. 🙏</textarea>
+    <div style="font-size:11px;color:var(--text-3);margin-top:6px;margin-bottom:3px">PREVIEW</div>
+    <div class="tpl-prev" id="pr-wa"></div>
+  </div>
+  <div id="tp-email" style="display:none">
+    <div class="field">
+      <label>Subject line</label>
+      <input id="tpl-subj" value="Order confirmation — {product}" oninput="prevUpdate()">
+    </div>
+    <div class="field">
+      <label>Email body</label>
+      <textarea id="tpl-email" rows="6" oninput="prevUpdate()">Hi {name},
+
+Your order for {product} is ready. Do you still need it?
+
+Reply YES or NO. If you don't hear from us within {deadline}, contact {contact} to arrange pickup.
+
+Thank you!</textarea>
+    </div>
+    <div style="font-size:11px;color:var(--text-3);margin-bottom:3px">PREVIEW</div>
+    <div class="tpl-prev" id="pr-email"></div>
+  </div>
+  <div id="tp-fu" style="display:none">
+    <div style="font-size:12px;color:var(--text-3);margin-bottom:6px">This message is for when a customer replies YES — copy and paste it manually.</div>
+    <textarea id="tpl-fu" rows="6" oninput="prevUpdate()">Great, thank you {name}! 😊
+
+Are you available to receive your *{product}* within the next *{deadline}*?
+
+If you don't receive a call or text from us within {deadline}, please contact *{contact}* to pick up your order.
+
+We look forward to delivering to you! 🚚</textarea>
+    <div style="font-size:11px;color:var(--text-3);margin-top:6px;margin-bottom:3px">PREVIEW</div>
+    <div class="tpl-prev" id="pr-fu"></div>
+  </div>
+</div>
+
+<!-- SEND LOG -->
+<div class="card" id="log-card" style="display:none">
+  <div class="card-title"><span>4</span> Send log</div>
+  <div id="log-body"><div class="empty"><span class="empty-icon">📋</span>No messages sent yet.</div></div>
+</div>
+
+</main>
+
+<script>
+let orders = [];
+let logEntries = [];
+
+/* ── helpers ── */
+function $(id){ return document.getElementById(id); }
+function setDot(n){
+  for(let i=1;i<=4;i++){
+    $('d'+i).className='dot'+(i<n?' done':i===n?' active':'');
+  }
+}
+function alert$(id,type,html){
+  const el=$(id); if(!el)return;
+  if(!html){el.innerHTML='';return;}
+  const icons={ok:'✓',err:'✕',warn:'⚠',info:'ℹ'};
+  el.innerHTML=`<div class="alert alert-${type}"><span class="alert-icon">${icons[type]||'ℹ'}</span><span>${html}</span></div>`;
+}
+function fillTpl(tpl,o){
+  const contact=$('cfg-contact').value||'09133656700';
+  const deadline=$('cfg-window').value||'3 to 4 days';
+  return tpl.replace(/{name}/g,o.name||'Customer').replace(/{product}/g,o.product||'your order').replace(/{deadline}/g,deadline).replace(/{contact}/g,contact);
+}
+function prevUpdate(){
+  const s=orders.length?orders[0]:{name:'Amaka',product:'Ankara fabric'};
+  $('pr-wa').textContent=fillTpl($('tpl-wa').value,s);
+  $('pr-email').textContent=fillTpl($('tpl-email').value,s);
+  $('pr-fu').textContent=fillTpl($('tpl-fu').value,s);
+}
+function swTpl(id,el){
+  ['wa','email','fu'].forEach(t=>$('tp-'+t).style.display=t===id?'block':'none');
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+}
+
+/* ── parse messages ── */
+function parseMessages(messages){
+  const phoneRe=/(?:\+?234|0)[789]\d{9}/g;
+  const emailRe=/[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g;
+  const kw=$('kw-filter').value.trim();
+  const keys=kw?kw.split(',').map(k=>k.trim().toLowerCase()).filter(Boolean):[];
+  const parsed=[];
+  messages.forEach((msg,idx)=>{
+    const text=(msg.text||msg.caption||'').trim();
+    if(!text)return;
+    if(keys.length&&!keys.some(k=>text.toLowerCase().includes(k)))return;
+    const phones=[...text.matchAll(phoneRe)].map(m=>m[0]);
+    const emails=[...text.matchAll(emailRe)].map(m=>m[0]);
+    const senderFirst=msg.from?msg.from.first_name||'':'';
+    const senderLast=msg.from?msg.from.last_name||'':'';
+    const senderName=(senderFirst+' '+senderLast).trim();
+    let name=senderName||('Customer '+(idx+1));
+    const nameMatch=text.match(/(?:name|customer|from)[:\s]+([A-Za-z][a-z]+(?:\s[A-Za-z][a-z]+)?)/i)||text.match(/^([A-Za-z][a-z]+(?:\s[A-Za-z][a-z]+)?)\s*:/);
+    if(nameMatch&&nameMatch[1]&&nameMatch[1].length>1)name=nameMatch[1].trim();
+    let product='Order item';
+    const prodMatch=text.match(/(?:order(?:ed)?|want(?:s)?|need(?:s)?|request(?:s)?|buy(?:ing)?)[:\s]+([^\n,;.]{4,60})/i);
+    if(prodMatch&&prodMatch[1])product=prodMatch[1].trim().slice(0,55);
+    parsed.push({id:msg.message_id||Date.now()+Math.random(),name,product,wa:phones[0]||'',email:emails[0]||'',via:phones[0]&&emails[0]?'both':phones[0]?'wa':emails[0]?'email':'none',rawText:text.slice(0,80),chatId:msg.chat?msg.chat.id:'',sent:false,selected:true});
+  });
+  return parsed;
+}
+
+/* ── fetch from Telegram ── */
+async function fetchOrders(){
+  const token=$('bot-token').value.trim();
+  const chatId=$('chat-id').value.trim();
+  if(!token){alert$('fetch-status','warn','Paste your Bot Token first.');return;}
+  if(!chatId){alert$('fetch-status','warn','Paste your Chat ID too — it is required to pull your orders.');return;}
+  $('fetch-icon').textContent='⏳';
+  alert$('fetch-status','info','<span class="spinning">⏳</span> Connecting to Telegram...');
+  setDot(2);
+  const limit=parseInt($('fetch-limit').value);
+
+  // First delete the webhook so getUpdates works
+  try {
+    await fetch(`https://api.telegram.org/bot${token}/deleteWebhook?drop_pending_updates=false`);
+  } catch(e) {}
+
+  // Try getUpdates with offset=-1 to get recent messages
+  try{
+    // Try multiple offsets to get all messages
+    let allMsgs = [];
+    
+    // Method 1: getUpdates with large negative offset
+    const url=`https://api.telegram.org/bot${token}/getUpdates?offset=-${limit}&limit=${limit}`;
+    const res=await fetch(url);
+    if(!res.ok)throw new Error('HTTP '+res.status);
+    const data=await res.json();
+    
+    if(!data.ok){
+      // Try without deleting webhook
+      alert$('fetch-status','err','Telegram error: '+(data.description||'Invalid token or webhook conflict. Try again.'));
+      setDot(1); $('fetch-icon').textContent='⬇'; return;
+    }
+    
+    allMsgs = data.result.map(u=>u.message||u.channel_post).filter(m=>m&&(m.chat.id==chatId||String(m.chat.id)==chatId));
+    
+    // If no messages from getUpdates, try getChatHistory via forwardFrom
+    if(!allMsgs.length) {
+      // Try getting updates without chat filter first
+      const allUpdates = data.result.map(u=>u.message||u.channel_post).filter(Boolean);
+      if(allUpdates.length) {
+        allMsgs = allUpdates;
+      }
+    }
+
+    if(!allMsgs.length){
+      alert$('fetch-status','warn','No messages found in getUpdates. Your bot may be using webhooks which blocks getUpdates. Use the "+ Add" button to manually add your customers, or paste orders below.');
+      // Show manual paste option
+      $('manual-paste-section').style.display='block';
+      setDot(1); $('fetch-icon').textContent='⬇'; return;
+    }
+    
+    orders=parseMessages(allMsgs);
+    $('fetch-icon').textContent='⬇';
+    if(!orders.length){
+      alert$('fetch-status','warn',`Pulled ${allMsgs.length} messages but could not parse orders. Try clearing the keyword filter.`);
+      setDot(1); return;
+    }
+    alert$('fetch-status','ok',`Pulled ${allMsgs.length} Telegram messages → found <strong>${orders.length} orders</strong>. Review below.`);
+    renderAll(); setDot(3);
+  }catch(e){
+    $('fetch-icon').textContent='⬇';
+    alert$('fetch-status','err','Could not reach Telegram. Check your internet connection and token.<br><small style="opacity:.7">Error: '+e.message+'</small>');
+    setDot(1);
+  }
+}
+
+async function fetchFromPaste(){
+  const text = $('paste-orders').value.trim();
+  if(!text){alert$('fetch-status','warn','Paste your Telegram messages first.');return;}
+  const fakeMessages = text.split('---').filter(t=>t.trim()).map((t,i)=>({
+    message_id: i+1,
+    text: t.trim(),
+    from: {first_name:'Customer', last_name: String(i+1)},
+    chat: {id: 0}
+  }));
+  orders = parseMessages(fakeMessages);
+  if(!orders.length){
+    alert$('fetch-status','warn','Could not parse any orders from the pasted text. Make sure each order is separated by ---');
+    return;
+  }
+  alert$('fetch-status','ok',`Parsed <strong>${orders.length} orders</strong> from pasted messages. Review below.`);
+  $('manual-paste-section').style.display='none';
+  renderAll(); setDot(3);
+}
+
+/* ── demo ── */
+function loadDemo(){
+  orders=[
+    {id:1,name:'Amaka Eze',product:'Red Ankara fabric (3 yards)',wa:'+2348012345678',email:'amaka@gmail.com',via:'both',rawText:'Demo',sent:false,selected:true},
+    {id:2,name:'Chidi Okafor',product:'Lace material (5 yards)',wa:'+2348098765432',email:'',via:'wa',rawText:'Demo',sent:false,selected:true},
+    {id:3,name:'Fatima Bello',product:'Blue silk (2 yards)',wa:'',email:'fatima@yahoo.com',via:'email',rawText:'Demo',sent:false,selected:true},
+    {id:4,name:'Ngozi Adeyemi',product:'Aso-oke fabric',wa:'+2348055443322',email:'ngozi@outlook.com',via:'both',rawText:'Demo',sent:false,selected:true},
+    {id:5,name:'Emeka Nwosu',product:'George fabric (4 yards)',wa:'+2349011223344',email:'',via:'wa',rawText:'Demo',sent:false,selected:true},
+  ];
+  alert$('fetch-status','ok','Demo loaded — 5 sample customers. Tap "Send both to all selected" to test.');
+  renderAll(); setDot(3);
+}
+
+/* ── render ── */
+function renderAll(){
+  renderTable();
+  $('orders-card').style.display='block';
+  $('tpl-card').style.display='block';
+  $('log-card').style.display='block';
+  prevUpdate();
+}
+function renderTable(){
+  updateStats();
+  const tbody=$('o-tbody');
+  if(!orders.length){tbody.innerHTML='<tr><td colspan="8"><div class="empty">No orders found.</div></td></tr>';return;}
+  tbody.innerHTML=orders.map(o=>{
+    const vb=o.via==='both'?'<span class="badge b-both">Both</span>':
+      o.via==='wa'?'<span class="badge b-wa">WA</span>':
+      o.via==='email'?'<span class="badge b-em">Email</span>':
+      '<span class="badge b-none">None</span>';
+    const sb=o.sent?'<span class="badge b-sent">Sent</span>':'<span class="badge b-pending">Pending</span>';
+    const warn=!o.wa&&!o.email?'class="warn-row"':'';
+    return `<tr ${warn}>
+      <td><input type="checkbox" ${o.selected?'checked':''} onchange="togSel(${o.id},this.checked)"></td>
+      <td title="${o.name}">${o.name.slice(0,15)}</td>
+      <td title="${o.product}">${o.product.slice(0,22)}${o.product.length>22?'…':''}</td>
+      <td style="font-size:11px;font-family:monospace">${o.wa||'<span style="color:#aaa">—</span>'}</td>
+      <td style="font-size:11px" title="${o.email}">${o.email?o.email.slice(0,18)+(o.email.length>18?'…':''):'<span style="color:#aaa">—</span>'}</td>
+      <td>${vb}</td>
+      <td>${sb}</td>
+      <td><button class="btn btn-ghost btn-sm" onclick="editOrder(${o.id})" title="Edit">✏</button></td>
+    </tr>`;
+  }).join('');
+}
+function updateStats(){
+  const sel=orders.filter(o=>o.selected).length;
+  $('st-t').textContent=orders.length;
+  $('st-w').textContent=orders.filter(o=>o.wa).length;
+  $('st-e').textContent=orders.filter(o=>o.email).length;
+  $('st-s').textContent=sel;
+  $('o-count').textContent='('+orders.length+')';
+}
+function togSel(id,val){const o=orders.find(o=>o.id==id);if(o){o.selected=val;updateStats();}}
+function selAll(val){orders.forEach(o=>o.selected=val);renderTable();$('chk-all').checked=val;}
+function addManual(){
+  const name=prompt('Customer name:','');if(!name)return;
+  const product=prompt('Product ordered:','');
+  const wa=prompt('WhatsApp number (e.g. +2348012345678):','');
+  const email=prompt('Email address:','');
+  orders.push({id:Date.now(),name:name.trim(),product:(product||'Order item').trim(),wa:(wa||'').trim(),email:(email||'').trim(),via:(wa&&email)?'both':wa?'wa':email?'email':'none',rawText:'Manual',sent:false,selected:true});
+  renderAll(); alert$('fetch-status','ok','Customer added manually.');
+}
+function editOrder(id){
+  const o=orders.find(o=>o.id==id);if(!o)return;
+  const name=prompt('Customer name:',o.name);if(name!==null)o.name=name.trim()||o.name;
+  const prod=prompt('Product:',o.product);if(prod!==null)o.product=prod.trim()||o.product;
+  const wa=prompt('WhatsApp number:',o.wa);if(wa!==null)o.wa=wa.trim();
+  const email=prompt('Email:',o.email);if(email!==null)o.email=email.trim();
+  o.via=o.wa&&o.email?'both':o.wa?'wa':o.email?'email':'none';
+  renderTable(); prevUpdate();
+}
+
+/* ── blast ── */
+const delay=ms=>new Promise(r=>setTimeout(r,ms));
+async function blast(type){
+  const targets=orders.filter(o=>o.selected);
+  if(!targets.length){$('blast-st').textContent='Select at least one order first.';return;}
+  const waTpl=$('tpl-wa').value;
+  const emTpl=$('tpl-email').value;
+  const subjTpl=$('tpl-subj').value;
+  let sent=0;
+  $('blast-st').textContent='Opening contacts…';
+  setDot(4);
+  for(const o of targets){
+    const doWa=(type==='wa'||type==='both')&&o.wa&&(o.via==='wa'||o.via==='both');
+    const doEm=(type==='email'||type==='both')&&o.email&&(o.via==='email'||o.via==='both');
+    if(doWa){
+      const phone=o.wa.replace(/\D/g,'');
+      window.open('https://wa.me/'+phone+'?text='+encodeURIComponent(fillTpl(waTpl,o)),'_blank');
+      addLog(o.name,'WhatsApp',o.product); sent++;
+    }
+    if(doEm){
+      window.open('mailto:'+o.email+'?subject='+encodeURIComponent(fillTpl(subjTpl,o))+'&body='+encodeURIComponent(fillTpl(emTpl,o)),'_blank');
+      addLog(o.name,'Email',o.product); sent++;
+    }
+    o.sent=true;
+    await delay(700);
+  }
+  renderTable();
+  $('blast-st').textContent='Done — '+sent+' message(s) opened.';
+}
+function addLog(name,type,product){
+  const wrap=$('log-body');
+  if(!logEntries.length)wrap.innerHTML='';
+  logEntries.unshift({name,type,product});
+  const row=document.createElement('div');
+  row.className='log-row';
+  const icon=type==='WhatsApp'?'📱':'✉';
+  row.innerHTML=`<span>${icon} <strong>${name}</strong> — ${product.slice(0,30)}</span><span class="badge ${type==='WhatsApp'?'b-wa':'b-em'}">${type}</span><span style="color:var(--text-3);font-size:11px">${new Date().toLocaleTimeString()}</span>`;
+  wrap.prepend(row);
+}
+
+prevUpdate();
+</script>
+</body>
 </html>
