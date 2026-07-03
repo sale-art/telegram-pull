@@ -108,6 +108,9 @@ tr:hover td{background:#fafaf8}
       <button class="btn bgh bsm" onclick="selAll(true)">✓ All</button>
       <button class="btn bgh bsm" onclick="selAll(false)">✗ None</button>
       <button class="btn bgh bsm" onclick="addManual()">+ Add</button>
+      <button class="btn bgr bsm" onclick="saveToFile()">💾 Save</button>
+      <button class="btn bgh bsm" onclick="loadFromFile()">📂 Load</button>
+      <button class="btn bred bsm" onclick="clearAll()">🗑 Clear</button>
     </div>
   </div>
   <div class="stats">
@@ -116,6 +119,13 @@ tr:hover td{background:#fafaf8}
     <div class="stat"><div class="snum" id="st-e">0</div><div class="slbl">Email</div></div>
     <div class="stat"><div class="snum" id="st-s">0</div><div class="slbl">Selected</div></div>
   </div>
+  <!-- SEARCH BAR -->
+  <div style="position:relative;margin-bottom:10px">
+    <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#999;font-size:15px">🔍</span>
+    <input type="text" id="search-input" placeholder="Search by name or product..." oninput="renderTable()" style="padding-left:36px;background:#f9f9f7;border:1px solid #ddd;border-radius:8px;font-size:13px;width:100%;padding-top:9px;padding-bottom:9px;outline:none">
+    <span id="search-clear" onclick="clearSearch()" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);color:#999;cursor:pointer;font-size:18px;display:none">&#x2715;</span>
+  </div>
+
   <div class="twrap">
     <table>
       <thead><tr>
@@ -166,6 +176,118 @@ var orders = [];
 var waQ = [];
 var waIdx = 0;
 var waTpl = '';
+
+// Storage keys
+var STORAGE_KEY = 'smartech_blast_v2';
+var FILTER_KEY = 'smartech_blast_filter_v2';
+
+// SAVE to all storage methods
+function saveOrders(){
+  var data = JSON.stringify(orders);
+  try{ localStorage.setItem(STORAGE_KEY, data); }catch(e){}
+  try{ sessionStorage.setItem(STORAGE_KEY, data); }catch(e){}
+  try{
+    var exp = new Date(); exp.setDate(exp.getDate()+30);
+    document.cookie = STORAGE_KEY+'='+encodeURIComponent(data)+';expires='+exp.toUTCString()+';path=/;SameSite=Lax';
+  }catch(e){}
+}
+
+// LOAD from all storage methods
+function loadOrders(){
+  var data = null;
+  try{ data = localStorage.getItem(STORAGE_KEY); }catch(e){}
+  if(!data){ try{ data = sessionStorage.getItem(STORAGE_KEY); }catch(e){} }
+  if(!data){
+    try{
+      var m = document.cookie.match(new RegExp('(?:^|; )'+STORAGE_KEY+'=([^;]*)'));
+      if(m) data = decodeURIComponent(m[1]);
+    }catch(e){}
+  }
+  return data;
+}
+
+// Load on start
+window.addEventListener('load', function(){
+  var saved = loadOrders();
+  if(saved){
+    try{
+      var parsed = JSON.parse(saved);
+      if(parsed && parsed.length){
+        orders = parsed;
+        showOrders();
+        g('card-setup').style.display = 'none';
+        dot(3);
+        var unsent = orders.filter(function(o){return !o.sent;}).length;
+        alert2('pull-status','info','Loaded <strong>'+orders.length+' customers</strong> from your last session. '+unsent+' not yet contacted.');
+      }
+    }catch(e){ orders=[]; }
+  }
+});
+
+// Save before close/refresh
+window.addEventListener('beforeunload', function(){
+  saveOrders();
+});
+
+function clearSearch(){
+  g('search-input').value='';
+  g('search-clear').style.display='none';
+  renderTable();
+}
+
+function saveToFile(){
+  var data={orders:orders,savedAt:new Date().toISOString(),version:'1.0'};
+  var blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='smartech-blast-'+new Date().toISOString().slice(0,10)+'.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  var btn=event.target;
+  var orig=btn.textContent;
+  btn.textContent='✅ Saved!';
+  setTimeout(function(){btn.textContent=orig;},2000);
+}
+
+function loadFromFile(){
+  var input=document.createElement('input');
+  input.type='file';
+  input.accept='.json';
+  input.onchange=function(e){
+    var file=e.target.files[0]; if(!file)return;
+    var reader=new FileReader();
+    reader.onload=function(ev){
+      try{
+        var data=JSON.parse(ev.target.result);
+        var loaded=Array.isArray(data)?data:(data.orders||[]);
+        if(!loaded.length){alert('No customers found in file.');return;}
+        var existing=orders.map(function(o){return o.wa;});
+        var added=0;
+        loaded.forEach(function(o){
+          if(!existing.includes(o.wa)){orders.push(o);added++;}
+          else{var idx=orders.findIndex(function(ex){return ex.wa===o.wa;});if(idx>-1)orders[idx]=o;}
+        });
+        saveOrders(); showOrders();
+        alert2('pull-status','ok','Loaded <strong>'+loaded.length+' customers</strong> from file ('+added+' new).');
+        g('card-setup').style.display='none'; dot(3);
+      }catch(ex){alert('Could not read file: '+ex.message);}
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+}
+
+function clearAll(){
+  if(!confirm('Clear ALL customer data?'))return;
+  orders=[];
+  try{localStorage.removeItem(STORAGE_KEY);}catch(e){}
+  try{sessionStorage.removeItem(STORAGE_KEY);}catch(e){}
+  g('card-orders').style.display='none';
+  g('card-log').style.display='none';
+  g('card-setup').style.display='block';
+  alert2('pull-status','ok','All data cleared.');
+  dot(1);
+}
 
 function g(id){ return document.getElementById(id); }
 
@@ -365,6 +487,7 @@ function loadDemo(){
 
 function showOrders(){
   renderTable();
+  saveOrders();
   g('card-orders').style.display='block';
   g('card-log').style.display='block';
   window.scrollTo({top:g('card-orders').offsetTop-20,behavior:'smooth'});
@@ -372,9 +495,18 @@ function showOrders(){
 
 function renderTable(){
   updateStats();
+  saveOrders();
+  var q=(g('search-input')?g('search-input').value.trim().toLowerCase():'');
+  var clr=g('search-clear'); if(clr)clr.style.display=q?'block':'none';
+  var filtered=orders.filter(function(o){
+    return !q||o.name.toLowerCase().includes(q)||o.product.toLowerCase().includes(q)||(o.wa&&o.wa.includes(q));
+  });
   var tb=g('tbody');
-  if(!orders.length){tb.innerHTML='<tr><td colspan="7" style="text-align:center;padding:24px;color:#999">No orders</td></tr>';return;}
-  tb.innerHTML=orders.map(function(o){
+  if(!filtered.length){
+    tb.innerHTML='<tr><td colspan="7" style="text-align:center;padding:24px;color:#999">'+(q?'No results for "'+q+'"':'No orders')+'</td></tr>';
+    return;
+  }
+  tb.innerHTML=filtered.map(function(o){
     var vb=o.via==='both'?'<span class="badge bboth">Both</span>':o.via==='wa'?'<span class="badge bwa2">WA</span>':o.via==='email'?'<span class="badge bem2">Email</span>':'<span class="badge bnone">None</span>';
     var sb=o.sent?'<span class="badge bsent">Sent</span>':'<span class="badge bpend">Pending</span>';
     return '<tr><td><input type="checkbox"'+(o.selected?' checked':'')+' onchange="tog(\''+o.id+'\',this.checked)"></td><td style="font-weight:500">'+o.name+'</td><td style="color:#666;font-size:12px">'+o.product.slice(0,28)+'</td><td style="font-size:11px;font-family:monospace">'+(o.wa||'<span style="color:#bbb">—</span>')+'</td><td>'+vb+'</td><td>'+sb+'</td><td><button class="btn bgh bsm" onclick="edit(\''+o.id+'\')">✏</button></td></tr>';
@@ -477,3 +609,4 @@ function addLog(name,type,prod){
 </script>
 </body>
 </html>
+
