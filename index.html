@@ -32,6 +32,8 @@ textarea{resize:vertical}
 .bem{background:#3b6ef6;color:#fff}.bem:hover{background:#2a5cd6}
 .bdk{background:#1a1a18;color:#fff}
 .bgh{background:transparent;color:#1a1a18;border-color:#ccc}.bgh:hover{background:#f5f5f3}
+.bgr{background:#16a34a;color:#fff}.bgr:hover{background:#128a3e}
+.bred{background:#dc2626;color:#fff}.bred:hover{background:#b91c1c}
 .bsm{padding:5px 10px;font-size:12px}
 .blg{padding:12px 24px;font-size:14px;font-weight:600}
 .bbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
@@ -107,6 +109,7 @@ tr:hover td{background:#fafaf8}
     <div class="bbar">
       <button class="btn bgh bsm" onclick="selAll(true)">✓ All</button>
       <button class="btn bgh bsm" onclick="selAll(false)">✗ None</button>
+      <button class="btn bgh bsm" onclick="showImportMore()">⬇ Import more</button>
       <button class="btn bgh bsm" onclick="addManual()">+ Add</button>
       <button class="btn bgr bsm" onclick="saveToFile()">💾 Save</button>
       <button class="btn bgh bsm" onclick="loadFromFile()">📂 Load</button>
@@ -120,10 +123,13 @@ tr:hover td{background:#fafaf8}
     <div class="stat"><div class="snum" id="st-s">0</div><div class="slbl">Selected</div></div>
   </div>
   <!-- SEARCH BAR -->
-  <div style="position:relative;margin-bottom:10px">
-    <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#999;font-size:15px">🔍</span>
-    <input type="text" id="search-input" placeholder="Search by name or product..." oninput="renderTable()" style="padding-left:36px;background:#f9f9f7;border:1px solid #ddd;border-radius:8px;font-size:13px;width:100%;padding-top:9px;padding-bottom:9px;outline:none">
-    <span id="search-clear" onclick="clearSearch()" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);color:#999;cursor:pointer;font-size:18px;display:none">&#x2715;</span>
+  <div style="display:flex;gap:8px;margin-bottom:10px">
+    <div style="position:relative;flex:1">
+      <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#999;font-size:15px">🔍</span>
+      <input type="text" id="search-input" placeholder="Search name, product, WhatsApp or email..." oninput="renderTable()" onkeydown="if(event.key==='Enter')renderTable()" style="padding-left:36px;background:#f9f9f7;border:1px solid #ddd;border-radius:8px;font-size:13px;width:100%;padding-top:9px;padding-bottom:9px;outline:none">
+      <span id="search-clear" onclick="clearSearch()" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);color:#999;cursor:pointer;font-size:18px;display:none">&#x2715;</span>
+    </div>
+    <button class="btn btg" onclick="renderTable()" title="Search">🔍 Search</button>
   </div>
 
   <div class="twrap">
@@ -176,10 +182,12 @@ var orders = [];
 var waQ = [];
 var waIdx = 0;
 var waTpl = '';
+var activityLog = [];
 
 // Storage keys
 var STORAGE_KEY = 'smartech_blast_v2';
 var FILTER_KEY = 'smartech_blast_filter_v2';
+var LOG_KEY = 'smartech_blast_log_v2';
 
 // SAVE to all storage methods
 function saveOrders(){
@@ -206,8 +214,38 @@ function loadOrders(){
   return data;
 }
 
+// SAVE/LOAD activity log (so send history survives refresh / clearing customers)
+function saveLog(){
+  try{ localStorage.setItem(LOG_KEY, JSON.stringify(activityLog)); }catch(e){}
+}
+function loadLog(){
+  try{
+    var data = localStorage.getItem(LOG_KEY);
+    if(data){ activityLog = JSON.parse(data) || []; }
+  }catch(e){ activityLog=[]; }
+}
+function renderLog(){
+  var w=g('logbody'); if(!w)return;
+  if(!activityLog.length){
+    w.innerHTML='<div style="text-align:center;padding:20px;color:#999">No activity yet</div>';
+    return;
+  }
+  w.innerHTML=activityLog.map(function(entry){
+    var ic=entry.type==='WhatsApp'?'📱':'✉';
+    var bc=entry.type==='WhatsApp'?'bwa2':'bem2';
+    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f0f0ee;font-size:13px;"><span>'+ic+' <strong>'+entry.name+'</strong> — '+entry.prod.slice(0,30)+'</span><span class="badge '+bc+'">'+entry.type+'</span><span style="color:#999;font-size:11px">'+entry.time+'</span></div>';
+  }).join('');
+}
+
 // Load on start
 window.addEventListener('load', function(){
+  loadLog();
+  if(activityLog.length){
+    g('card-log').style.display='block';
+    renderLog();
+  }
+  var savedFilter = loadFilterText();
+  if(savedFilter && g('search-input')) g('search-input').value = savedFilter;
   var saved = loadOrders();
   if(saved){
     try{
@@ -228,6 +266,13 @@ window.addEventListener('load', function(){
 window.addEventListener('beforeunload', function(){
   saveOrders();
 });
+
+function saveFilterText(){
+  try{ localStorage.setItem(FILTER_KEY, g('search-input')?g('search-input').value:''); }catch(e){}
+}
+function loadFilterText(){
+  try{ return localStorage.getItem(FILTER_KEY)||''; }catch(e){ return ''; }
+}
 
 function clearSearch(){
   g('search-input').value='';
@@ -275,6 +320,36 @@ function loadFromFile(){
     reader.readAsText(file);
   };
   input.click();
+}
+
+// Merge a freshly-parsed batch into the existing orders list instead of
+// overwriting it. Matches on WhatsApp number first, then email, then
+// name+product as a last resort, so pulling/pasting again doesn't wipe
+// out customers you already imported.
+function mergeOrders(newOrders){
+  var added=0, updated=0;
+  newOrders.forEach(function(o){
+    var idx=-1;
+    if(o.wa) idx=orders.findIndex(function(ex){return ex.wa&&ex.wa===o.wa;});
+    if(idx===-1&&o.email) idx=orders.findIndex(function(ex){return ex.email&&ex.email===o.email;});
+    if(idx===-1&&!o.wa&&!o.email) idx=orders.findIndex(function(ex){return ex.name===o.name&&ex.product===o.product;});
+    if(idx>-1){
+      var keepId=orders[idx].id, keepSent=orders[idx].sent, keepSel=orders[idx].selected;
+      orders[idx]=Object.assign({},orders[idx],o,{id:keepId,sent:keepSent,selected:keepSel});
+      updated++;
+    } else {
+      orders.push(o); added++;
+    }
+  });
+  return {added:added,updated:updated};
+}
+
+// Re-open the Pull/Paste card so more customers can be imported without
+// clearing what's already there. mergeOrders() (used by pullTelegram,
+// parsePaste, loadDemo) makes this safe to do repeatedly.
+function showImportMore(){
+  g('card-setup').style.display='block';
+  window.scrollTo({top:g('card-setup').offsetTop-20,behavior:'smooth'});
 }
 
 function clearAll(){
@@ -419,12 +494,13 @@ async function pullTelegram(){
       dot(1);return;
     }
 
-    orders=parseBlocks(msgs);
-    if(!orders.length){
+    var newOrders=parseBlocks(msgs);
+    if(!newOrders.length){
       alert2('pull-status','warn','Pulled '+msgs.length+' messages but could not parse customer details. Try pasting orders manually below.');
       dot(1);return;
     }
-    alert2('pull-status','ok','✅ Pulled '+msgs.length+' messages → found <strong>'+orders.length+' orders</strong> with customer details.');
+    var res=mergeOrders(newOrders);
+    alert2('pull-status','ok','✅ Pulled '+msgs.length+' messages → <strong>'+res.added+' new order(s)</strong> added'+(res.updated?' ('+res.updated+' updated)':'')+'. Total: '+orders.length+' customer(s).');
     showOrders();dot(3);
 
   }catch(e){
@@ -467,21 +543,24 @@ function parsePaste(){
   if(!blocks.length){blocks=[txt];}
 
   var fake=blocks.map(function(t,i){return{text:t.trim(),message_id:i,chat:{id:0}};});
-  orders=parseBlocks(fake);
-  if(!orders.length){alert2('pull-status','warn','Could not parse orders. Make sure messages contain Name: and Phone: or WhatsApp: fields.');return;}
-  alert2('pull-status','ok','Parsed <strong>'+orders.length+' orders</strong> successfully — no separator needed!');
+  var newOrders=parseBlocks(fake);
+  if(!newOrders.length){alert2('pull-status','warn','Could not parse orders. Make sure messages contain Name: and Phone: or WhatsApp: fields.');return;}
+  var res=mergeOrders(newOrders);
+  alert2('pull-status','ok','Parsed <strong>'+newOrders.length+' orders</strong> — '+res.added+' new added'+(res.updated?', '+res.updated+' updated':'')+'. Total: '+orders.length+' customer(s).');
+  g('paste').value='';
   showOrders();dot(3);
 }
 
 function loadDemo(){
-  orders=[
-    {id:'d1',name:'Amaka Eze',product:'iPhone 17 Pro Max',wa:'+2348012345678',email:'amaka@gmail.com',via:'both',sent:false,selected:true},
-    {id:'d2',name:'Chidi Okafor',product:'Samsung S26 Ultra',wa:'+2348098765432',email:'',via:'wa',sent:false,selected:true},
-    {id:'d3',name:'Fatima Bello',product:'iPhone 17 Pro Max',wa:'+2348055443322',email:'fatima@yahoo.com',via:'both',sent:false,selected:true},
-    {id:'d4',name:'Ngozi Adeyemi',product:'Samsung S26 Ultra',wa:'+2349011223344',email:'',via:'wa',sent:false,selected:true},
-    {id:'d5',name:'Emeka Nwosu',product:'iPhone 17 Pro Max',wa:'+2348031122334',email:'emeka@gmail.com',via:'both',sent:false,selected:true},
+  var demoOrders=[
+    {id:'d1_'+Date.now(),name:'Amaka Eze',product:'iPhone 17 Pro Max',wa:'+2348012345678',email:'amaka@gmail.com',via:'both',sent:false,selected:true},
+    {id:'d2_'+Date.now(),name:'Chidi Okafor',product:'Samsung S26 Ultra',wa:'+2348098765432',email:'',via:'wa',sent:false,selected:true},
+    {id:'d3_'+Date.now(),name:'Fatima Bello',product:'iPhone 17 Pro Max',wa:'+2348055443322',email:'fatima@yahoo.com',via:'both',sent:false,selected:true},
+    {id:'d4_'+Date.now(),name:'Ngozi Adeyemi',product:'Samsung S26 Ultra',wa:'+2349011223344',email:'',via:'wa',sent:false,selected:true},
+    {id:'d5_'+Date.now(),name:'Emeka Nwosu',product:'iPhone 17 Pro Max',wa:'+2348031122334',email:'emeka@gmail.com',via:'both',sent:false,selected:true},
   ];
-  alert2('pull-status','ok','Demo loaded — 5 sample customers.');
+  var res=mergeOrders(demoOrders);
+  alert2('pull-status','ok','Demo loaded — '+res.added+' sample customer(s) added.');
   showOrders();dot(3);
 }
 
@@ -496,10 +575,11 @@ function showOrders(){
 function renderTable(){
   updateStats();
   saveOrders();
+  saveFilterText();
   var q=(g('search-input')?g('search-input').value.trim().toLowerCase():'');
   var clr=g('search-clear'); if(clr)clr.style.display=q?'block':'none';
   var filtered=orders.filter(function(o){
-    return !q||o.name.toLowerCase().includes(q)||o.product.toLowerCase().includes(q)||(o.wa&&o.wa.includes(q));
+    return !q||o.name.toLowerCase().includes(q)||o.product.toLowerCase().includes(q)||(o.wa&&o.wa.includes(q))||(o.email&&o.email.toLowerCase().includes(q));
   });
   var tb=g('tbody');
   if(!filtered.length){
@@ -597,16 +677,12 @@ function doEmail(){
 }
 
 function addLog(name,type,prod){
-  var w=g('logbody');
-  var ic=type==='WhatsApp'?'📱':'✉';
-  var bc=type==='WhatsApp'?'bwa2':'bem2';
-  var r=document.createElement('div');
-  r.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f0f0ee;font-size:13px;';
-  r.innerHTML='<span>'+ic+' <strong>'+name+'</strong> — '+prod.slice(0,30)+'</span><span class="badge '+bc+'">'+type+'</span><span style="color:#999;font-size:11px">'+new Date().toLocaleTimeString()+'</span>';
-  if(w.innerHTML.includes('No activity'))w.innerHTML='';
-  w.prepend(r);
+  activityLog.unshift({name:name,type:type,prod:prod,time:new Date().toLocaleString()});
+  if(activityLog.length>1000) activityLog=activityLog.slice(0,1000); // cap growth
+  saveLog();
+  g('card-log').style.display='block';
+  renderLog();
 }
 </script>
 </body>
 </html>
-
